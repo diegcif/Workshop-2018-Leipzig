@@ -32,7 +32,7 @@ document {
     EXAMPLE lines ///
       R = QQ[x,t];
       f = x^4 - 2*x + t;
-      (ok,Q,mon,tval) = solveSOS (f,{t},t,rndTol=>3);
+      (ok,Q,mon,tval) = solveSOS (f,{t},t,RndTol=>3);
       (g,d) = sosdec(Q,mon)
       tval
     ///,
@@ -161,7 +161,7 @@ doc /// --solveSOS
       Example
         R = QQ[x,z,t];
         f = x^4+x^2+z^6-3*x^2*z^2-t;
-        (ok,Q,mon,tval) = solveSOS (f,{t},-t,rndTol=>12);
+        (ok,Q,mon,tval) = solveSOS (f,{t},-t,RndTol=>12);
         tval
       Code
       Pre
@@ -441,10 +441,10 @@ doc /// --checkSolver
 -- Symbols
 --###################################
 
-doc /// --rndTol
+doc /// --RndTol
     Key
-        rndTol
-        [solveSOS,rndTol]
+        RndTol
+        [solveSOS,RndTol]
     Headline
         construct a block diagonal matrix
     Consequences

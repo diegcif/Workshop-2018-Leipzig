@@ -38,10 +38,11 @@ export {
     "getRationalSOS",
     "changeField",
 --Method options
-    "rndTol",
-    "untilObjNegative",
-    "workingPrecision",
-    "Solver"
+    "RndTol",
+    "UntilObjNegative",
+    "WorkingPrecision",
+    "Solver",
+    "TraceObj"
 }
 
 --##########################################################################--
@@ -77,7 +78,7 @@ sosdec = (Q,mon) -> (
      )     
 
 solveSOS = method(
-     Options => {rndTol => -3, Solver=>"M2", Verbose => false} )
+     Options => {RndTol => -3, Solver=>"M2", Verbose => false, TraceObj => false} )
 solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if coefficientRing ring f =!= QQ then error "polynomial must be over QQ";
     if first degree objFcn > 1 then error("Only linear objective function allowed.");
@@ -110,6 +111,10 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
                 map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then 1_QQ else 0_QQ),
                 map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then -1_QQ else 0_QQ)));
         );
+    )else if o.TraceObj then (
+        -- compute an optimal solution --
+        verbose("Solving SOS optimization problem...", o);
+        obj = map(RR^(#Bi),RR^1,(i,j)-> -trace Bi#i) || map(RR^(#Ai),RR^1,(i,j)-> -trace Ai#i);
     )else (
         -- compute a feasible solution --
         verbose( "Solving SOS feasibility problem...", o);
@@ -122,7 +127,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     pvec0 := y^(toList(0..#p-1));
 
     -- rational rounding --
-    (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.rndTol);
+    (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
     if not ok then return (ok,Q,changeField(mon,RR),pvec0);
     return (ok,Qp,mon,pVec);
     )
@@ -133,12 +138,12 @@ solveSOS(RingElement,List) := o -> (f,p) ->
 solveSOS(RingElement) := o -> (f) -> 
     drop(solveSOS(f,{},o),-1)
 
-roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,rndTol) -> (
+roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndTol) -> (
     -- round and project --
     Qnum := matrix applyTable(entries Q, a -> round(a*2^52)/2^52);
 
     dhi := 52;
-    d := rndTol;
+    d := RndTol;
     np := numColumns B;
     
     while (d < dhi) do (
@@ -387,7 +392,7 @@ blkDiag = args -> (
 --###################################
 
 solveSDP = method(
-     Options => {untilObjNegative => false, workingPrecision => 53, Solver=>"M2", Verbose => false} )
+     Options => {UntilObjNegative => false, WorkingPrecision => 53, Solver=>"M2", Verbose => false} )
 
 solveSDP(Matrix, Matrix, Matrix) := o -> (C,A,b) -> solveSDP(C,sequence A,b,o)
 
@@ -397,7 +402,7 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     (ok,y,X,Z) := trivialSDP(C,A,b);
     if ok then return (y,X,Z);
     if o.Solver == "M2" then
-        (y,Z) = simpleSDP(C,A,b,untilObjNegative=>o.untilObjNegative,Verbose=>o.Verbose)
+        (y,Z) = simpleSDP(C,A,b,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose)
     else if o.Solver == "CSDP" then
         (y,X,Z) = solveCSDP(C,A,b,Verbose=>o.Verbose)
     else if o.Solver == "SDPA" then
@@ -411,7 +416,7 @@ solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
     (ok,y,X,Z) := trivialSDP(C,A,b);
     if ok then return (y,X);
     if o.Solver != "M2" then return solveSDP(C,A,b,o);
-    (y,Z) = simpleSDP(C,A,b,y0,untilObjNegative=>o.untilObjNegative,Verbose=>o.Verbose);
+    (y,Z) = simpleSDP(C,A,b,y0,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose);
     return (y,,Z);
 )
 
@@ -436,7 +441,7 @@ trivialSDP = (C,A,b) -> (
 
 simpleSDP = method(
     TypicalValue => Matrix,
-    Options => {untilObjNegative => false, Verbose => false} )
+    Options => {UntilObjNegative => false, Verbose => false} )
 
 simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     R := RR;
@@ -452,7 +457,7 @@ simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
         verbose("Computing strictly feasible solution...", o); 
         y =  map(R^#A,R^1,i->0) || matrix{{lambda*1.1}};
         obj :=  map(R^#A,R^1,i->0) || matrix{{-1_R}};
-        (y,Z) = simpleSDP(C,append(A,id_(R^n)), obj, y, untilObjNegative=>true, Verbose=>o.Verbose);
+        (y,Z) = simpleSDP(C,append(A,id_(R^n)), obj, y, UntilObjNegative=>true, Verbose=>o.Verbose);
         if y===null then return (,);
         y = transpose matrix {take (flatten entries y,numRows y - 1)};   
         );
@@ -506,7 +511,7 @@ simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
             if iter > NewtonIterMAX then (
                 verbose("Warning: exceeded maximum number of iterations", o);
                 break);
-            if (o.untilObjNegative == true) and (obj_(0,0) < 0) then break;
+            if (o.UntilObjNegative == true) and (obj_(0,0) < 0) then break;
             if lambda < 0.4 then break;
             ); 
         );
@@ -750,7 +755,7 @@ TEST /// --good cases
 
     R = QQ[x,z,t];
     f = x^4+x^2+z^6-3*x^2*z^2-t;
-    (ok,Q,mon,tval) = solveSOS (f,{t},-t,rndTol=>12);
+    (ok,Q,mon,tval) = solveSOS (f,{t},-t,RndTol=>12);
     assert( tval#0 == -729/4096 )
     assert( sub(f,t=>tval#0) == transpose(mon)*Q*mon )
 ///
