@@ -64,7 +64,7 @@ verbose = (s,o) -> if o.Verbose then print s
 sumSOS = (g,d) -> sum for i to #g-1 list g_i^2 * d_i
 
 sosdec = (Q,mon) -> (
-     if mon===null then return (null,null);
+     if mon===null or Q===null then return (,);
      (L,D,P,err) := LDLdecomposition(Q);
      if err != 0 then error ("Gram Matrix is not positive semidefinite");
      n := numRows Q;
@@ -79,6 +79,7 @@ sosdec = (Q,mon) -> (
 solveSOS = method(
      Options => {rndTol => -3, Solver=>"M2", Verbose => false} )
 solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
+    if coefficientRing ring f =!= QQ then error "polynomial must be over QQ";
     if first degree objFcn > 1 then error("Only linear objective function allowed.");
     parBounded := false;
     if #bounds==2 then (
@@ -118,9 +119,11 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if my===null then return (false,,mon,);
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
+    pvec0 := y^(toList(0..#p-1));
 
+    -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.rndTol);
-    if not ok then return (ok,Q,changeField(mon,RR),y^(toList(0..#p-1)));
+    if not ok then return (ok,Q,changeField(mon,RR),pvec0);
     return (ok,Qp,mon,pVec);
     )
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
@@ -159,7 +162,7 @@ changeField = (f,kk) -> (
     S := kk(monoid[X]);
     phi := map(S,R);
     return phi(f);
-)
+    )
 
 createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
      -- Degree and number of variables
@@ -320,10 +323,8 @@ getRationalSOS = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
 
 LDLdecomposition = (A) -> (
      kk := ring A;
-     if kk===ZZ then (
-         kk = QQ;
-         A = promote(A,kk);
-         );
+     if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then 
+        error "field must be QQ or RR";
      if transpose A != A then error("Matrix must be symmetric.");
       
      n := numRows A;
@@ -774,8 +775,10 @@ TEST /// --Newton polytope
         
 TEST /// --LDL
 --  Simple example
-    A = matrix {{5,3,5},{3,2,4},{5,4,10}}
-    (L,D,P,err) = LDLdecomposition(A)
+    A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
+    (L,D,P,err) = LDLdecomposition A
+    assert(L*D*transpose L == transpose P * A * P)
+    (L,D,P,err) = LDLdecomposition promote(A,RR)
     assert(L*D*transpose L == transpose P * A * P)
     
 --  Random low-rank matrix

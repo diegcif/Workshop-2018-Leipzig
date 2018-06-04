@@ -324,7 +324,7 @@ doc /// --LDLdecomposition
       Text
         Given a positive semidefinite matrix $A$, this method returns a lower triangular matrix $L$ with ones in the diagonal, a diagonal matrix $D$ and a permutation matrix $P$ such that $L' D L = P' A P.$
       Example
-        A = matrix {{5,3,5},{3,2,4},{5,4,10}}
+        A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
         (L,D,P,err) = LDLdecomposition(A)
         L*D*transpose(L) == transpose(P)*A*P
       Text
