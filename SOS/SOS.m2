@@ -120,7 +120,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
 
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.rndTol);
-    if not ok then return (ok,Q,changeField(mon,RR),{});
+    if not ok then return (ok,Q,changeField(mon,RR),y^(toList(0..#p-1)));
     return (ok,Qp,mon,pVec);
     )
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
@@ -318,15 +318,18 @@ getRationalSOS = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      if Qpsd == 0 then (true, Q) else (false,Q)
      )
 
-LDLdecomposition = args -> (
-     args = sequence args;
-     A := promote (args#0,QQ);
+LDLdecomposition = (A) -> (
+     kk := ring A;
+     if kk===ZZ then (
+         kk = QQ;
+         A = promote(A,kk);
+         );
      if transpose A != A then error("Matrix must be symmetric.");
       
      n := numRows A;
-     Ah := new MutableHashTable; map (QQ^n,QQ^n,(i,j)->Ah#(i,j) = A_(i,j));
-     v := new MutableList from toList apply(0..n-1,i->0_QQ);
-     d := new MutableList from toList apply(0..n-1,i->0_QQ);
+     Ah := new MutableHashTable; map (kk^n,kk^n,(i,j)->Ah#(i,j) = A_(i,j));
+     v := new MutableList from toList apply(0..n-1,i->0_kk);
+     d := new MutableList from toList apply(0..n-1,i->0_kk);
      piv := new MutableList from toList(0..n-1);
      err := 0;
      
@@ -355,9 +358,9 @@ LDLdecomposition = args -> (
       );
      );
 
-     A = map(QQ^n,QQ^n,(i,j)-> if i>j then Ah#(i,j) else if i==j then 1_QQ else 0_QQ);
-     D := map(QQ^n,QQ^n,(i,j)->if i==j then Ah#(i,j) else 0_QQ);
-     P := submatrix(id_(QQ^n),toList piv);
+     A = map(kk^n,kk^n,(i,j)-> if i>j then Ah#(i,j) else if i==j then 1_kk else 0_kk);
+     D := map(kk^n,kk^n,(i,j)->if i==j then Ah#(i,j) else 0_kk);
+     P := submatrix(id_(kk^n),toList piv);
      (A,D,P,err)     
 )
 
