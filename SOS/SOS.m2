@@ -36,6 +36,7 @@ export {
     "choosemonp",
     "project2linspace",
     "getRationalSOS",
+    "changeField",
 --Method options
     "rndTol",
     "untilObjNegative",
@@ -119,7 +120,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
 
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.rndTol);
-    if not ok then return (ok,Q,mon,{});
+    if not ok then return (ok,Q,changeField(mon,RR),{});
     return (ok,Qp,mon,pVec);
     )
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
@@ -151,6 +152,14 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,rndT
     pVec = if np!=0 then flatten entries pVec else null;
     return (ok,Qp,pVec);
     )
+
+changeField = (f,kk) -> (
+    R := ring f;
+    X := gens R;
+    S := kk(monoid[X]);
+    phi := map(S,R);
+    return phi(f);
+)
 
 createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
      -- Degree and number of variables
