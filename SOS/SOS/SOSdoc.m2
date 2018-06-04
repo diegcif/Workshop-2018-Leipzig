@@ -466,6 +466,6 @@ document { --Solver
        {"\"SDPA\"", " -- use the SDPA solver, available at ", TT "http://sdpa.sourceforge.net/" },
       },
     "The CSDP and SDPA executables can be specified when loading the package, as follows ",BR{},
-    TT "loadPackage(SOS,Configuration=>{\"CSDPexec\"=>\"csdp\",\"SDPAexec\"=>\"sdpa\"})",BR{},
+    TT "loadPackage(\"SOS\",Configuration=>{\"CSDPexec\"=>\"csdp\",\"SDPAexec\"=>\"sdpa\"})",BR{},
     }
 
