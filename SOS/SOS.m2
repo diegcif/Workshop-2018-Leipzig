@@ -192,7 +192,7 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
      K := keys HHHm;
 
      -- Linear constraints: b     
-     b := transpose matrix{apply (K, k-> (if Hf#?k then substitute(Hf#k,QQ) else 0))};
+     b := transpose matrix(QQ,{apply (K, k-> (if Hf#?k then substitute(Hf#k,QQ) else 0))});
 
      -- Linear constraints: Ai, Bi
      Ah := new MutableHashTable;
@@ -400,10 +400,12 @@ solveSDP(Matrix, Matrix, Matrix) := o -> (C,A,b) -> solveSDP(C,sequence A,b,o)
 solveSDP(Matrix, Matrix, Matrix, Matrix) := o -> (C,A,b,y) -> solveSDP(C,sequence A,b,y,o)
 
 solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
-    (ok,y,X,Z) := trivialSDP(C,A,b);
-    if ok then return (y,X,Z);
-    if o.Solver == "M2" then
-        (y,Z) = simpleSDP(C,A,b,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose)
+    (ok,y,X,Z) := (,,,);
+    if o.Solver == "M2" then(
+        (ok,y,X,Z) = trivialSDP(C,A,b);
+        if ok then return (y,X,Z)
+        else (y,Z) = simpleSDP(C,A,b,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose)
+        )
     else if o.Solver == "CSDP" then
         (y,X,Z) = solveCSDP(C,A,b,Verbose=>o.Verbose)
     else if o.Solver == "SDPA" then
@@ -414,9 +416,10 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
 )
 
 solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
-    (ok,y,X,Z) := trivialSDP(C,A,b);
-    if ok then return (y,X);
+    (ok,y,X,Z) := (,,,);
     if o.Solver != "M2" then return solveSDP(C,A,b,o);
+    (ok,y,X,Z) = trivialSDP(C,A,b);
+    if ok then return (y,X,Z);
     (y,Z) = simpleSDP(C,A,b,y0,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose);
     return (y,,Z);
 )
