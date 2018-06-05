@@ -28,9 +28,10 @@ genericCombination = (h, D) -> (
     pvars := for i to #h-1 list
         toList( p_(i,0)..p_(i,#(mon#i)-1) );
     S := newRing (R, Variables=> gens R|flatten pvars);
+    pvars = for i to #h-1 list apply (pvars#i, m->S_m);
     -- polynomial multipliers
     g := for i to #h-1 list
-        formPoly ( apply (pvars#i, m->S_m) , apply (mon#i, m -> sub (m, S)) );
+        formPoly ( pvars#i , apply (mon#i, m -> sub (m, S)) );
     F := sum apply (h,g, (i,j)->sub(i,S)*j);
     return (F,flatten pvars);
     )
