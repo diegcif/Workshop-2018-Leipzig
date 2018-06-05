@@ -5,3 +5,9 @@ eigenVecLargestEigenval = X -> (
     return flatten entries eigvecs^{maxPosition eigvals};
 )
 
+minimizePoly = p -> (
+    -- take the ambient ring and adjoin variable t
+    -- now assume it is there
+    (Q, mon, X, tval) = solveSOS(f-t,{t},-t);
+    return (tval, eigenVecLargestEigenval Q);
+)
