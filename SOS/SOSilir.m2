@@ -23,6 +23,7 @@ minimizePoly = (p, tvar, rndErr) -> (
 
 --Test
 R=QQ[x,y];
-f = x^2+y^2+1;
+--f = x^2+y^2+1;
+f = (x-1)^4;
 r = minimizePoly(f, t, 3);
 print(r);
