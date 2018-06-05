@@ -5,9 +5,15 @@ eigenVecLargestEigenval = X -> (
     return flatten entries eigvecs^{maxPosition eigvals};
 )
 
-minimizePoly = p -> (
-    -- take the ambient ring and adjoin variable t
-    -- now assume it is there
-    (Q, mon, X, tval) = solveSOS(f-t,{t},-t);
+minimizePoly = (p, tvar) -> (
+    ringp = ring p;
+    if member(tvar, gens ringp) then error "Please provide a new variable name";
+    coeffp = coefficientRing ringp;
+    newR := coeffp[gens ringp | {tvar}];
+    F = map(newR, ringp);
+    newp = F(p); 
+    use newR;
+    tpoly = t;
+    (Q, mon, X, tval) = solveSOS(newp-tpoly,{tpoly},-tpoly, RndTol=>12);
     return (tval, eigenVecLargestEigenval Q);
 )
