@@ -10,54 +10,36 @@ needsPackage ("SOS" , Configuration => { "CSDPexec" => "CSDP/csdp"})
 -- 
 -- -- Even simpler
 
-R = QQ[x,y,z, g1, g2]
+
+
+formPoly = (coeff, mon) -> sum apply (coeff, mon, (i,j)->i*j)
+
+genericCombination = (h, D) -> (
+    -- h is a list of polynomials
+    -- D is a maximumd degree
+    R := ring h#0;
+    -- compute monomials
+    p := symbol p;
+    mon := for i to #h-1 list (
+        di := D - first degree h#i;
+        flatten entries basis (di, R)
+        );
+    -- ring of parameters
+    pvars := for i to #h-1 list
+        toList( p_(i,0)..p_(i,#(mon#i)-1) );
+    S := newRing (R, Variables=> gens R|flatten pvars);
+    -- polynomial multipliers
+    g := for i to #h-1 list
+        formPoly ( apply (pvars#i, m->S_m) , apply (mon#i, m -> sub (m, S)) );
+    F := sum apply (h,g, (i,j)->sub(i,S)*j);
+    return (F,flatten pvars);
+    )
+
+R = QQ[x,y,z]
 h1 = x^2 + y^2
 h2 = y^2 + z^2
+h = {h1,h2}
 
-f = g1*h1 + g2*h2
+(f,p) = genericCombination(h, 2)
 
--- (Q,mon, X) = solveSOS (f, {g1,g2}, Solver=>"CSDP")
-
-
-makePPoly = (d, R, p, i) -> (
-    -- d is the desired degree of the generic polynomial in R.  p is a
-    -- symbol used to make variables for the coefficients and i is the
-    -- first index of these variables.
-    mon := flatten entries basis (d, R);
-    newvars := p_(i,0) .. p_(i,#mon-1);
-    return (newvars, mon)
-    )
-
-
-formPoly = (coeff, mons) -> (
-    sum apply (coeff, mons, (i,j)->i*j))
-
-makePPoly (2, R, symbol p, 0)
-
-
-constructf = (h, t) -> (
-    -- h is a list of polynomials
-    -- 2t is a maximumd degree
-    R := ring h#0;
-
-    -- compute complementary degrees:
-    dbar := for hi in h list 2*t - first degree hi;
-
-    p := symbol p;
-    i := -1;
-    L := for d in dbar list (
-	i = i + 1;
-	makePPoly (d, R, p, i)
-	);
-    pvars := flatten for l in L list l#0;
-    Q := newRing (R, Variables=> gens R|pvars);
-    g := for i to #h-1 list (
-	formPoly ( apply (L#i#0, m->Q_m) , apply (L#i#1, m -> sub (m, Q)) )
-	);
-    sum apply (h,g, (I,J)->sub(I,Q)*J)
-    )
-
-Q = constructf ({h1,h2},2)
-    
-    
-    
+(Q,mon,X,tval) = solveSOS (f, p, Solver=>"CSDP")
