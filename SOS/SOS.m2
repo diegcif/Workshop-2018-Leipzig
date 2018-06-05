@@ -124,7 +124,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if Q===null then return (Q,mon,X,);
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
-    pvec0 := y^(toList(0..#p-1));
+    pvec0 := flatten entries y^(toList(0..#p-1));
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
