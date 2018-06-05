@@ -92,7 +92,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
          
     -- build SOS model --     
     (C,Ai,Bi,A,B,b,mon,GramIndex,LinSpaceIndex) := createSOSModel(f,p,Verbose=>o.Verbose);
-    if #mon==0 then return (false,,mon,);
+    if #mon==0 then return (,mon,,);
 
     ndim := numRows C;
     mdim := #Ai;
@@ -121,15 +121,16 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         obj = map(RR^(#Ai+#Bi),RR^1,i->0);
     );
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
-    if my===null then return (false,,mon,);
+    if Q===null then return (Q,mon,X,);
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := y^(toList(0..#p-1));
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
-    if not ok then return (ok,Q,changeField(mon,RR),pvec0);
-    return (ok,Qp,mon,pVec);
+    if ok then return (Qp,mon,X,pVec);
+    print "rounding failed, returning real solution";
+    return (Q,changeField(mon,RR),X,pvec0);
     )
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
     solveSOS(f,p,objFcn,{},o)
@@ -732,30 +733,30 @@ load "./SOS/SOSdoc.m2"
 TEST /// --good cases
     R = QQ[x,y];
     f = 4*x^4+y^4;
-    (ok,Q,mon) = solveSOS f
+    (Q,mon,X) = solveSOS f
     (g,d) = sosdec(Q,mon)
     assert( f == sumSOS(g,d) )
 
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
-    (ok,Q,mon) = solveSOS f
+    (Q,mon,X) = solveSOS f
     (g,d) = sosdec(Q,mon)
     assert( f == sumSOS(g,d) )
 
     R = QQ[x,y,z];
     f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
-    (ok,Q,mon) = solveSOS f
+    (Q,mon,X) = solveSOS f
     (g,d) = sosdec(Q,mon)
     assert( f == sumSOS(g,d) )
     
     R = QQ[x,y,z,w];
     f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
-    (ok,Q,mon) = solveSOS f
+    (Q,mon,X) = solveSOS f
     (g,d) = sosdec(Q,mon)
     assert( f == sumSOS (g,d) )
 
     R = QQ[x,z,t];
     f = x^4+x^2+z^6-3*x^2*z^2-t;
-    (ok,Q,mon,tval) = solveSOS (f,{t},-t,RndTol=>12);
+    (Q,mon,X,tval) = solveSOS (f,{t},-t,RndTol=>12);
     assert( tval#0 == -729/4096 )
     assert( sub(f,t=>tval#0) == transpose(mon)*Q*mon )
 ///
@@ -763,10 +764,10 @@ TEST /// --good cases
 TEST /// --bad cases
     R = QQ[x,y,t];
     f = x^4*y^2 + x^2*y^4 - 3*x^2*y^2 + 1 --Motzkin
-    (ok,Q,mon) = solveSOS(f); 
-    assert( ok == false )
-    (ok,Q,mon,tval) = solveSOS(f-t,{t},-t); 
-    assert( ok == false )
+    (Q,mon,X) = solveSOS(f); 
+    assert( Q === null )
+    (Q,mon,X,tval) = solveSOS(f-t,{t},-t); 
+    assert( Q === null )
 ///
 
 TEST /// --Newton polytope
