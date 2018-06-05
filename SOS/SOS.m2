@@ -238,6 +238,13 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
      )
 
 choosemonp = {Verbose=>false} >> o -> (f,p) -> (
+     filterVerts := (verts) -> (
+         -- only consider those without parameters (this is a hack!)
+         R := ring f;
+         p0 := apply(p,i->i=>0);
+         lm0 := set(apply(flatten entries (coefficients f)_0,i->(substitute(i,p0))));
+         return select(verts, v -> member(R_v,lm0));
+     );
      -- Get rid of parameters in polynomial:
      X := gens ring f;
      genpos := positions(X,i->not any(p,j->j==i));
@@ -270,8 +277,8 @@ choosemonp = {Verbose=>false} >> o -> (f,p) -> (
      idx := sum apply(entries(dualpolytope * liftedpts), i->argmin i);
      polytope := substitute(points_(toList idx),ZZ);
      oddverts := select(entries transpose polytope, i->any(i,odd));
-     if #oddverts>0 then(
-         verbose("Newton polytope has odd vertices. Terminate.", o);
+     if #filterVerts(oddverts)>0 then(
+         print("Newton polytope has odd vertices. Terminate.");
          return (lmf,{});
          );
 
@@ -668,7 +675,9 @@ readSDPA = (fout,n,Verbose) -> (
     else if match("pUNBD",s) then(
         print "primal infeasible";
         X=null; )
-    else error "unknown message";
+    else( 
+        print("Warning: Solver returns unknown message!!! " |s);
+        );
     return (y,X,Z);
     )
 

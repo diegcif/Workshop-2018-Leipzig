@@ -1,5 +1,6 @@
 restart
 needsPackage ("SOS" , Configuration => { "CSDPexec" => "CSDP/csdp"})
+needsPackage ("NumericalAlgebraicGeometry")
 
 -- R = QQ[x1,x2]
 -- h1 = x2^4*x1+3*x1^3-x2^^4 -3*x1^2
@@ -37,10 +38,18 @@ genericCombination = (h, D) -> (
     )
 
 R = QQ[x,y,z]
-h1 = x^2 + y^2
-h2 = y^2 + z^2
-h = {h1,h2}
+h1 = (x-1)^2 + (y-2)^2
+h2 = (y-2)^2 + z^2
+h3 = z*(z-1)
+h = {h1,h2,h3}
 
-(f,p) = genericCombination(h, 2)
+(f,p) = genericCombination(h, 4)
 
-(Q,mon,X,tval) = solveSOS (f, p, Solver=>"CSDP")
+(Q,mon,X,tval) = solveSOS (f, p, Solver=>"CSDP",Verbose=>false)
+(g,d) = sosdec(Q,mon)
+S = (ring Q)[x,y,z]
+g = for i to #g-1 list 
+    if d_i<1e-5 then continue else sub(g_i,S)
+
+sol = solveSystem g
+print sol
