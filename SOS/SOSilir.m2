@@ -21,6 +21,7 @@ minimizePoly(RingElement,List,ZZ) := o -> (p,pars, rndErr) -> (
     newp := F(p); 
     tpoly := last gens newR;
     (Q, mon, X, tval) := solveSOS(newp-tpoly,{tpoly},-tpoly, o);
+    if Q===null then return (,);
     opt := first tval;
     x := eigenVecLargestEigenval(X, rndErr);
     dic := if x===null then {}
@@ -62,7 +63,7 @@ f = (x-1)^2 + (x+1)^2;
 r = minimizePoly(f, {}, 3, RndTol=>12, Solver => "CSDP");
 print(r);
 
-
+-- minimize f(x) subject to h(x) = 0
 R=QQ[x,y,z];
 f = (x-1)^2 + (y-2)
 h = {x^2+y^2+z^2-1}
