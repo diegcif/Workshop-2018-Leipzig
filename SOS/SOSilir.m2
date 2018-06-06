@@ -12,7 +12,7 @@ eigenVecLargestEigenval = (X, rndErr)  -> (
 
 minimizePoly = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false} )
-minimizePoly(RingElement,ZZ) := o -> (p, rndErr) -> (
+minimizePoly(RingElement,List,ZZ) := o -> (p,pars, rndErr) -> (
     ringp := ring p;
     tvar := symbol t;
     coeffp := coefficientRing ringp;
@@ -31,9 +31,42 @@ minimizePoly(RingElement,ZZ) := o -> (p, rndErr) -> (
     return (opt, dic);
 )
 
+formPoly = (coeff, mon) -> sum apply (coeff, mon, (i,j)->i*j)
+
+genericCombination = (h, D) -> (
+    -- h is a list of polynomials
+    -- D is a maximumd degree
+    R := ring h#0;
+    -- compute monomials
+    p := symbol p;
+    mon := for i to #h-1 list (
+        di := D - first degree h#i;
+        flatten entries basis (0,di,R)
+        );
+    -- ring of parameters
+    pvars := for i to #h-1 list
+        toList( p_(i,0)..p_(i,#(mon#i)-1) );
+    S := newRing (R, Variables=> gens R|flatten pvars);
+    pvars = for i to #h-1 list apply (pvars#i, m->S_m);
+    -- polynomial multipliers
+    g := for i to #h-1 list
+        formPoly ( pvars#i , apply (mon#i, m -> sub (m, S)) );
+    F := sum apply (h,g, (i,j)->sub(i,S)*j);
+    return (F,flatten pvars);
+    )
+
 --Test
 R=QQ[x];
 --f = x^2+y^2+1;
 f = (x-1)^2 + (x+1)^2;
-r = minimizePoly(f, 3, RndTol=>12, Solver => "CSDP");
+r = minimizePoly(f, {}, 3, RndTol=>12, Solver => "CSDP");
 print(r);
+
+
+R=QQ[x,y,z];
+f = (x-1)^2 + (y-2)
+h = {x^2+y^2+z^2-1}
+(sh,p) = genericCombination(h, 2)
+S = ring sh
+f = sub(f,S)
+r = minimizePoly(f+sh, p, 3, RndTol=>12, Solver => "CSDP");
