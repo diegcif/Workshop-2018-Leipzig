@@ -31,6 +31,9 @@ export {
     "LDLdecomposition",
     "solveSDP",
     "checkSolver",
+    "genericCombination",
+    "cleanSOS",
+    "sosIdeal",
 --debugging
     "createSOSModel",
     "choosemonp",
@@ -120,6 +123,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         verbose( "Solving SOS feasibility problem...", o);
         obj = map(RR^(#Ai+#Bi),RR^1,i->0);
     );
+    --return (mon,C,Bi|Ai,obj);
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (Q,mon,X,);
     y := -my;
@@ -394,6 +398,67 @@ blkDiag = args -> (
       );
      return B;
      )
+
+--###################################
+-- SOS IDEAL
+--###################################
+
+genericCombination = (h, D) -> (
+    -- h is a list of polynomials
+    -- D is a maximumd degree
+    -- returns generic combination of the
+    formPoly := (coeff, mon) -> sum apply (coeff, mon, (i,j)->i*j);
+    if #h==0 then error "list of polynomials is empty";
+    if D < max\\first\degree\h then
+        error "increase degree bound";
+    R := ring h#0;
+    -- compute monomials
+    p := symbol p;
+    mon := for i to #h-1 list (
+        di := D - first degree h#i;
+        flatten entries basis (0,di,R)
+        );
+    -- ring of parameters
+    pvars := for i to #h-1 list
+        toList( p_(i,0)..p_(i,#(mon#i)-1) );
+    S := newRing (R, Variables=> gens R|flatten pvars);
+    pvars = for i to #h-1 list apply (pvars#i, m->S_m);
+    -- polynomial multipliers
+    g := for i to #h-1 list
+        formPoly ( pvars#i , apply (mon#i, m -> sub (m, S)) );
+    F := sum apply (h,g, (i,j)->sub(i,S)*j);
+    return (F,flatten pvars);
+    )
+
+sosIdeal = method(
+     Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
+sosIdeal(List,ZZ) := o -> (h,D) -> (
+    -- h is a list of polynomials
+    -- D is a degree bound
+    -- returns sos polynomial in <h>
+    if odd D then error "D must be even";
+    (f,p) := genericCombination(h, D);
+    (Q,mon,X,tval) := solveSOS (f, p, o);
+    if Q==0 or norm Q<1e-6 then (
+        print("no sos polynomial in degree "|D);
+        return (,) );
+    (g,d) := sosdec(Q,mon);
+    kk := ring Q;
+    if kk=!=QQ then(
+        X := gens ring h#0;
+        S := kk(monoid[X]);
+        g = for gi in g list sub(gi,S);
+        h = for hi in h list sub(hi,S);
+        );
+    return (h,g,d);
+    )
+
+cleanSOS = (g,d,tol) -> (
+    if g===null then return (,);
+    if coefficientRing ring g#0 === QQ then tol=0;
+    I := positions(d, di -> di>tol);
+    return (g_I,d_I);
+    )
 
 --###################################
 -- SDP SOLVER
