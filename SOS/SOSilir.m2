@@ -1,75 +1,67 @@
 needsPackage( "SOS", Configuration=>{"CSDPexec"=>"CSDP/csdp"} )
 
-eigenVecLargestEigenval = (X, rndErr)  -> (
-    if X === null then return; -- X null
+rank1factor = method(
+     Options => {EigTol => 1e-4} )
+rank1factor(Matrix) := o -> (X) -> (
     n := numRows X;
     (e, V) := eigenvectors(X,Hermitian=>true);
     if e#0 < 0 then return; -- X not PSD
-    if e#(n-2) > 1e-3 then return; -- not rank one
+    if e#(n-2) > o.EigTol then return; -- not rank one
     v := sqrt abs(e#(n-1)) * V_{n-1};
     retval := flatten entries v;
-    return apply(retval, u -> round(rndErr, u));
-)
+    return retval;
+    )
 
-minimizePoly = method(
-     Options => {RndTol => -3, Solver=>"M2", Verbose => false} )
+lowerBound = method(
+     Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
 
-minimizePoly(RingElement,List,ZZ) := o -> (p,pars, rndErr) -> (
-    ringp := ring p;
+lowerBound(RingElement,List) := o -> (f,pars) -> (
+    -- sos lower bound for the polynomial f
+    o' := new OptionTable from 
+        {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
+    R := ring f;
     tvar := symbol t;
-    coeffp := coefficientRing ringp;
-    newR := coeffp[gens ringp | {tvar}];
-    F := map(newR, ringp);
-    newp := F(p); 
+    coeffp := coefficientRing R;
+    newR := coeffp[gens R | {tvar}];
+    phi := map(newR, R);
     tpoly := last gens newR;
-    (Q, mon, X, tval) := solveSOS(newp-tpoly,{tpoly},-tpoly, o);
+    (Q, mon, X, tval) := solveSOS(phi(f)-tpoly,{tpoly}|phi\pars,-tpoly, o');
     if Q===null then return (,);
-    opt := first tval;
-    x := eigenVecLargestEigenval(X, rndErr);
-    dic := if x===null then {}
+    bound := first tval;
+    x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
+    sol := if x===null then {}
         else for i to numRows mon-1 list (
             y := mon_(i,0);
             if first degree y!=1 then continue;
             y => x_i );
-    return (opt, dic);
-)
-
-formPoly = (coeff, mon) -> sum apply (coeff, mon, (i,j)->i*j)
-
-genComb = (h, D) -> (
-    -- h is a list of polynomials
-    -- D is a maximumd degree
-    R := ring h#0;
-    -- compute monomials
-    p := symbol p;
-    mon := for i to #h-1 list (
-        di := D - first degree h#i;
-        flatten entries basis (0,di,R)
-        );
-    -- ring of parameters
-    pvars := for i to #h-1 list
-        toList( p_(i,0)..p_(i,#(mon#i)-1) );
-    S := newRing (R, Variables=> gens R|flatten pvars);
-    pvars = for i to #h-1 list apply (pvars#i, m->S_m);
-    -- polynomial multipliers
-    g := for i to #h-1 list
-        formPoly ( pvars#i , apply (mon#i, m -> sub (m, S)) );
-    F := sum apply (h,g, (i,j)->sub(i,S)*j);
-    return (F,flatten pvars);
+    return (bound, sol);
     )
 
---Test
+lasserreHierarchy = method(
+     Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
+    -- Lasserre hierarchy for the problem
+    -- min f(x) s.t. h(x)=0
+    if odd D then error "D must be even";
+    if all(h|{f}, isHomogeneous) then
+        error "problem is homogeneous";
+    (H,p) := genericCombination(h, D, false);
+    S := ring H;
+    f = sub(f,S);
+    (bound,sol) := lowerBound(f+H, p, o);
+    return (bound,sol);
+    )
+
+
 R=QQ[x];
 --f = x^2+y^2+1;
-f = (x-1)^2 + (x+1)^2;
-r = minimizePoly(f, {}, 3, RndTol=>12, Solver => "CSDP");
+f = (x-1)^2 + (x+3)^2;
+r = lowerBound(f, {}, RndTol=>12, Solver => "CSDP");
 print(r);
 
 -- minimize f(x) subject to h(x) = 0
 R=QQ[x,y,z];
-f = (x-1)^2 + (y-2)
+f = 10 - x^2 - y
 h = {x^2+y^2+z^2-1}
-(sh,p) = genComb(h, 2)
-S = ring sh
-f = sub(f,S)
-r = minimizePoly(f+sh, p, 3, RndTol=>12, Solver => "CSDP");
+r = lasserreHierarchy(f,h,2, RndTol=>12, Solver => "CSDP")
+print(r);

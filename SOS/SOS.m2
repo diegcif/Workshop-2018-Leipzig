@@ -505,7 +505,7 @@ genericCombination = (h, D, homog) -> (
         dotProd ( pvars#i , apply (mon#i, m -> sub (m, S)) );
     h = apply(h, hi -> sub(hi,S));
     F := dotProd(h,g);
-    return (F,flatten pvars,g);
+    return (F,flatten pvars);
     )
 
 sospolyIdeal = method(
@@ -515,8 +515,8 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     -- D is a degree bound
     -- returns sos polynomial in <h>
     if odd D then error "D must be even";
-    homog := all(h, hi -> isHomogeneous hi);
-    (f,p,mult) := genericCombination(h, D, homog);
+    homog := all(h, isHomogeneous);
+    (f,p) := genericCombination(h, D, homog);
     (Q,mon,X,tval) := solveSOS (f, p, o); --for some reason tval=0
     if Q==0 or norm Q<1e-6 then (
         print("no sos polynomial in degree "|D);
