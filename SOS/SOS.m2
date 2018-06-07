@@ -23,6 +23,7 @@ newPackage(
 
 export {
 --Types
+    "SOSPoly",
 --Methods/Functions
     "solveSOS",
     "sosdec",
@@ -45,8 +46,24 @@ export {
     "UntilObjNegative",
     "WorkingPrecision",
     "Solver",
-    "TraceObj"
+    "TraceObj",
+    "sos"
 }
+
+--##########################################################################--
+-- TYPES
+--##########################################################################--
+
+SOSPoly = new Type of HashTable
+
+-- constructor for sos decomposition
+sosPoly = method()
+sosPoly (List, List) := SOS => (polys, coeffs) -> (
+    new SOSPoly from {
+	gens => polys,
+	coefficients => coeffs
+	}
+    )
 
 --##########################################################################--
 -- GLOBAL VARIABLES 
@@ -65,7 +82,11 @@ verbose = (s,o) -> if o.Verbose then print s
 -- solveSOS
 --###################################
 
-sumSOS = (g,d) -> sum for i to #g-1 list g_i^2 * d_i
+sumSOS = method()
+
+sumSOS (List, List) := (g,d) -> sum for i to #g-1 list g_i^2 * d_i
+
+sumSOS SOSPoly := a -> sum for i to #(a#gens)-1 list a#gens_i^2 * a#coefficients_i
 
 sosdec = (Q,mon) -> (
      if mon===null or Q===null then return (,);
@@ -77,8 +98,8 @@ sosdec = (Q,mon) -> (
      idx := positions (d, i->i!=0);
      d = d_idx;
      g = g_idx;
-     return (g,d);
-     )     
+     return sosPoly(g,d);
+     )
 
 solveSOS = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false, TraceObj => false} )
@@ -466,19 +487,24 @@ sosIdeal(List,ZZ) := o -> (h,D) -> (
     (Q,mon,X,tval) := solveSOS (f, p, o);
     if Q==0 or norm Q<1e-6 then (
         print("no sos polynomial in degree "|D);
-        return (,,) );
-    (g,d) := sosdec(Q,mon);
+        -- return (,,) 
+	return null
+	);
+    -- (g,d) := sosdec(Q,mon);
+    a := sosdec(Q,mon);
     kk := ring Q;
     S := kk(monoid[gens ring h#0]);
     if kk=!=QQ then(
-        g = for gi in g list sub(gi,S);
-        h = for hi in h list sub(hi,S);
+        g := for gi in a#gens list sub(gi,S);
+    	a = sosPoly (g, a#coefficients);
+        h = for hi in h list sub(hi,S)
         );
     -- for some reason tval=0
     -- T := kk(monoid[gens ring f]);
     -- dic := for i to #p-1 list sub(p#i,T) => tval#i;
     -- mult = for m in mult list sub(sub(sub(m,T),dic),S);
-    return (h,g,d);
+    -- TK: Why does it return h?
+    return (h, a);
     )
 
 cleanSOS = (g,d,tol) -> (
@@ -839,25 +865,25 @@ TEST /// --good cases
     R = QQ[x,y];
     f = 4*x^4+y^4;
     (Q,mon,X) = solveSOS f
-    (g,d) = sosdec(Q,mon)
-    assert( f == sumSOS(g,d) )
+    a = sosdec(Q,mon)
+    assert( f == sumSOS a )
 
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
     (Q,mon,X) = solveSOS f
-    (g,d) = sosdec(Q,mon)
-    assert( f == sumSOS(g,d) )
+    a = sosdec(Q,mon)
+    assert( f == sumSOS a )
 
     R = QQ[x,y,z];
     f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
     (Q,mon,X) = solveSOS f
-    (g,d) = sosdec(Q,mon)
-    assert( f == sumSOS(g,d) )
+    a = sosdec(Q,mon)
+    assert( f == sumSOS a )
     
     R = QQ[x,y,z,w];
     f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
     (Q,mon,X) = solveSOS f
-    (g,d) = sosdec(Q,mon)
-    assert( f == sumSOS (g,d) )
+    a = sosdec(Q,mon)
+    assert( f == sumSOS a )
 
     R = QQ[x,z,t];
     f = x^4+x^2+z^6-3*x^2*z^2-t;
