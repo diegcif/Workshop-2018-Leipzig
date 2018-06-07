@@ -27,6 +27,7 @@ export {
 --Methods/Functions
     "solveSOS",
     "sosdec",
+    "sosdecTernary",
     "sumSOS",
     "blkDiag",
     "LDLdecomposition",
@@ -516,7 +517,7 @@ cleanSOS = (g,d,tol) -> (
 
 sosdecTernary = (f) -> (
     getmult := (fi,di) -> (
-        (h,g,w) := sosIdeal({fi},2*di-4);
+        (h,g,w) := sospolyIdeal({fi},2*di-4);
         if g===null then return;
         s := sumSOS(g,w);
         mult := (s // gens ideal(h))_(0,0);
