@@ -10,11 +10,11 @@ document {
       R = QQ[x,y];
       f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y
       (Q,mon,X) = solveSOS f;
-      (g,d) = sosdec(Q,mon)
+      s = sosdec(Q,mon)
     ///,
     "We can check with the command ", TT "sumSOS", " whether the found decomposition matches the original polynomial",
     EXAMPLE lines ///
-      sumSOS(g,d)
+      sumSOS(s)
     ///,
 
     HEADER5 "SOS with parameters",
@@ -23,7 +23,7 @@ document {
       R = QQ[x,t];
       f = (t-1)*x^4+1/2*t*x+1;
       (Q,mon,X,tval) = solveSOS (f,{t});
-      (g,d) = sosdec(Q,mon)
+      sosdec(Q,mon)
       tval
     ///,
 
@@ -33,7 +33,7 @@ document {
       R = QQ[x,t];
       f = x^4 - 2*x + t;
       (Q,mon,X,tval) = solveSOS (f,{t},t,RndTol=>3);
-      (g,d) = sosdec(Q,mon)
+      sosdec(Q,mon)
       tval
     ///,
     }
@@ -48,12 +48,9 @@ doc /// --sumSOS
     Headline
         expansion of a weighted SOS decomposition
     Usage
-        sumSOS(g,d)
+        sumSOS(s)
     Inputs
-        g:Sequence
-          of polynomials
-        d:Sequence
-          of numbers
+        g:SOSPoly
     Outputs
         :RingElement
           a polynomial
@@ -65,7 +62,8 @@ doc /// --sumSOS
         $f = \sum_i d_i g_i^2$.
       Example
         R = QQ[x,y];
-        sumSOS( (x+1,y), (2,3) )
+        s = sosPoly(R, {x+1,y}, {2,3} )
+        sumSOS( s )
       Code
       Pre
     SeeAlso
@@ -78,17 +76,14 @@ doc /// --sosdec
     Headline
         SOS decomposition of a polynomial
     Usage
-        (g,d) = sosdec(Q,mon)
+        s = sosdec(Q,mon)
     Inputs
         Q:Matrix
           the rational $n\times n$ Gram matrix of the polynomial f
         mon:Matrix
           a $n\times 1$ matrix of monomials
     Outputs
-        g:Sequence
-          of polynomials with coefficients in $\QQ$
-        d:Sequence
-          of scalar weights in $\QQ$
+        s:SOSPoly
         tval:List
           of parameter values
     Consequences
@@ -102,8 +97,8 @@ doc /// --sosdec
         R = QQ[x,y];
         f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
         (Q,mon,X) = solveSOS f;
-        (g,d) = sosdec(Q,mon)
-        sumSOS(g,d) - f
+        s = sosdec(Q,mon)
+        sumSOS(s)
       Code
       Pre
     SeeAlso
@@ -171,17 +166,16 @@ doc /// --solveSOS
         Solver
 ///
 
-doc /// --getRationalSOS
+doc /// --roundPSDmatrix
     Key
-        getRationalSOS
+        roundPSDmatrix
     Headline
-        compute rational SOS decomposition for given precision
+        rational rounding of a PSD matrix
     Usage
-        (Qp,ok) = getRationalSOS(Q,A,b,d)
-        (Qp,ok) = getRationalSOS(Q,A,b,d,GramIndex,LinSpaceIndex)
+        (Qp,ok) = roundPSDmatrix(Q,A,b,d,GramIndex,LinSpaceIndex)
     Inputs
         Q:Matrix
-          Gram matrix to be rounded
+          a positive semidefinite matrix
         A:Matrix
         b:Matrix
           a vector
@@ -189,15 +183,16 @@ doc /// --getRationalSOS
           the rounding precision
     Outputs
         Qp:Matrix
-          the rounded matrix
+          the rounded matrix (rational)
         ok:Boolean
           true if Qp is positive semidefinite
     Consequences
     Description
       Text
-        Returns the projection of the rounded matrix Q onto the affine subspace $A q = b$.
+        Returns the projection of a matrix $Q$ onto an affine subspace described by rational coefficients.
 
-        GramIndex and LinSpaceIndex are hash tables for the correspondence between the columns of $A$ and the entries of $Q$.
+        By vectorizing the matrices, the affine subspace can be described in the form $A q = b$.
+        GramIndex and LinSpaceIndex are hash tables that indicate how to vectorize the matrices.
       Code
       Pre
     SeeAlso
@@ -430,22 +425,21 @@ doc /// --sosdecTernary
         f:RingElement
           a polynomial in 3 variables
     Outputs
-        p:
-          list of sum of squares
-        q:
-          list of sum of squares
+        p:List
+          of sum of squares
+        q:List
+          of sum of squares
     Consequences
     Description
       Text
         This method gives a decomposition of a non-negative ternary polynomial as sum of squares of rational polynomials.
+        $$f=\frac{\prod_ip_i}{\prod_iq_i}$$
+        The method uses Hilbert's algorithm. 
+        This implementation only works with the solver CSDP.
 	
-	$$f=\frac{\prod_ip_i}{\prod_iq_i}$$
-	The method uses Hilbert's algorithm. This implementation only works with the solver CSDP.
-	
-	{\bf References:}
-	de Klerk, Etienne and Pasechnik, Dmitrii V.:Products of positive forms, linear matrix 
-	inequalities, and {H}ilbert 17th problem for ternary forms, European J. Oper. Res., 39-45(2004).
-	
+        {\bf References:}
+        de Klerk, Etienne and Pasechnik, Dmitrii V.: Products of positive forms, linear matrix inequalities, and Hilbert 17th problem for ternary forms, European J. Oper. Res., 39-45 (2004).
+        
 ///
 doc /// --sospolyIdeal
     Key
@@ -457,16 +451,16 @@ doc /// --sospolyIdeal
     Inputs
         f:List
           a list of polynomials
-	d:ZZ
-	  positive integer greater than the degrees of polynomials in the list f.
+        d:ZZ
+          positive integer greater than the degrees of polynomials in the list f.
     Outputs
-        p:
-          a sum of squares polynomial
+        p:SOSPoly
     Consequences
     Description
       Text
-        This method takes a list of polynomials as an input and finds a sum of squares polynomial upto degree d in the ideal 
-	generated by the polynomials in the list f. Output is null if it doesn't find a sum of squares polynomial upto that degree.	
+        This method takes a list of polynomials as an input and finds a sum of squares polynomial upto degree d in the ideal generated by the polynomials in the list f. 
+        Output is null if it doesn't find a sum of squares polynomial upto that degree.	
+        This implementation only works with the solver CSDP.
 	
 ///
 doc /// --checkSolver
@@ -509,7 +503,13 @@ doc /// --RndTol
 ///
 
 document { --Solver
-    Key => {Solver,[solveSDP,Solver],[solveSOS,Solver]},
+    Key => {
+        Solver,
+        [solveSDP,Solver],
+        [solveSOS,Solver],
+        [sospolyIdeal,Solver],
+        [sosdecTernary,Solver]
+        },
     Headline => "semidefinite programming solver",
     "The following SDP solvers are available:",
     UL{

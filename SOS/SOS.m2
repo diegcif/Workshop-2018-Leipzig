@@ -25,6 +25,7 @@ export {
 --Types
     "SOSPoly",
 --Methods/Functions
+    "sosPoly",
     "solveSOS",
     "sosdec",
     "sosdecTernary",
@@ -40,7 +41,7 @@ export {
     "createSOSModel",
     "choosemonp",
     "project2linspace",
-    "getRationalSOS",
+    "roundPSDmatrix",
     "changeField",
 --Method options
     "RndTol",
@@ -203,6 +204,7 @@ solveSOS(RingElement) := o -> (f) ->
     drop(solveSOS(f,{},o),-1)
 
 roundpolys = (F) -> (
+    -- rounds real polynomials into rationals
     liftmon := (S,x) -> S_(first exponents x);
     R := ring F#0;
     S := QQ(monoid[gens R]);
@@ -233,7 +235,7 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndT
            ) 
         else bPar= b;
 
-        (ok,Qp) := getRationalSOS(Qnum,A,bPar,d,GramIndex,LinSpaceIndex,Verbose=>o.Verbose);
+        (ok,Qp) := roundPSDmatrix(Qnum,A,bPar,d,GramIndex,LinSpaceIndex,Verbose=>o.Verbose);
         if ok then break else d = d + 1;
         );
     pVec = if np!=0 then flatten entries pVec else null;
@@ -396,7 +398,7 @@ project2linspace = (A,b,x0) -> (
      xp := x02 - transpose(A2)*((A2*x02-b2)//(A2*transpose(A2)))
      )
      
-getRationalSOS = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
+roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      ndim := numRows Q;
      
      verbose("Rounding precision: " | d, o);
@@ -515,13 +517,11 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     if odd D then error "D must be even";
     homog := all(h, hi -> isHomogeneous hi);
     (f,p,mult) := genericCombination(h, D, homog);
-    (Q,mon,X,tval) := solveSOS (f, p, o);
+    (Q,mon,X,tval) := solveSOS (f, p, o); --for some reason tval=0
     if Q==0 or norm Q<1e-6 then (
         print("no sos polynomial in degree "|D);
-        -- return (,,) 
-	return null
+        return (null,null);
 	);
-    -- (g,d) := sosdec(Q,mon);
     a := sosdec(Q,mon);
     kk := ring Q;
     S := kk(monoid[gens ring h#0]);
@@ -529,12 +529,8 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
         a = sub(a,S);
         h = for hi in h list sub(hi,S)
         );
-    -- for some reason tval=0
-    -- T := kk(monoid[gens ring f]);
-    -- dic := for i to #p-1 list sub(p#i,T) => tval#i;
-    -- mult = for m in mult list sub(sub(sub(m,T),dic),S);
-    -- TK: Why does it return h?
-    return (h, a);
+    mult := flatten entries (sumSOS a // gens ideal(h));
+    return (a,mult);
     )
 
 cleanSOS = method()
@@ -548,21 +544,17 @@ cleanSOS(SOSPoly,Number) := (s,tol) -> (
     return sosPoly(R,g_I,d_I);
     )
 
-sosdecTernary = (f) -> (
-    getmult := (fi,di) -> (
-        (h,S) := sospolyIdeal({fi},2*di-4);
-        if S===null then return;
-        mult := (sumSOS S // gens ideal(h))_(0,0);
-        return (S,mult);
-        );
+sosdecTernary = method(
+     Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
+sosdecTernary(RingElement) := o -> (f) -> (
     if numgens ring f =!= 3 then error "polynomial must involve 3 variables";
     fi := f;
     S := {};
     di := first degree fi;
     while di > 4 do(
-        (Si,mult) := getmult(fi,di);
-        if mult===null then return;
-        fi = mult;
+        (Si,mult) := sospolyIdeal({fi},2*di-4,o);
+        if Si===null then return;
+        fi = mult#0;
         di = first degree fi;
         S = append(S,Si);
         );
