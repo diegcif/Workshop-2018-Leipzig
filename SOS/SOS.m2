@@ -34,7 +34,7 @@ export {
     "checkSolver",
     "genericCombination",
     "cleanSOS",
-    "sosIdeal",
+    "sospolyIdeal",
 --debugging
     "createSOSModel",
     "choosemonp",
@@ -475,9 +475,9 @@ genericCombination = (h, D, homog) -> (
     return (F,flatten pvars,g);
     )
 
-sosIdeal = method(
+sospolyIdeal = method(
      Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
-sosIdeal(List,ZZ) := o -> (h,D) -> (
+sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     -- h is a list of polynomials
     -- D is a degree bound
     -- returns sos polynomial in <h>
@@ -512,6 +512,32 @@ cleanSOS = (g,d,tol) -> (
     if coefficientRing ring g#0 === QQ then tol=0;
     I := positions(d, di -> di>tol);
     return (g_I,d_I);
+    )
+
+sosdecTernary = (f) -> (
+    getmult := (fi,di) -> (
+        (h,g,w) := sosIdeal({fi},2*di-4);
+        if g===null then return;
+        s := sumSOS(g,w);
+        mult := (s // gens ideal(h))_(0,0);
+        return (h#0,mult);
+        );
+    if numgens ring f =!= 3 then error "polynomial must involve 3 variables";
+    fi := f;
+    Q := {};
+    di := first degree fi;
+    while di > 4 do(
+        (fi',mult) := getmult(fi,di);
+        if mult===null then return;
+        Qi := fi'*mult;
+        fi = mult;
+        di = first degree fi;
+        Q = append(Q,Qi);
+        );
+    Q = append(Q,fi);
+    nums := for i to #Q-1 list if odd i then continue else Q#i;
+    dens := for i to #Q-1 list if even i then continue else Q#i;
+    return (nums,dens);
     )
 
 --###################################
