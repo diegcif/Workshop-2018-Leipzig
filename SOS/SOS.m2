@@ -108,9 +108,10 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if #p!=0 and objFcn!=0 then (
         -- compute an optimal solution --
         verbose("Solving SOS optimization problem...", o);
-        objFcnCF := coefficients objFcn;
-        objFcnHT := hashTable transpose {flatten entries objFcnCF_0, flatten entries objFcnCF_1};
-        obj := transpose matrix {apply(p,i->substitute(-objFcnHT#i,QQ))} || map(QQ^#Ai,QQ^1,i->0);
+        (objMon,objCoef) := coefficients objFcn;
+        objP := transpose matrix {apply(p,
+            i->sub(-coefficient(i,objFcn),QQ))};
+        obj := objP || map(QQ^#Ai,QQ^1,i->0);
         
         if parBounded then (
             C = blkDiag(C,diagonalMatrix(-lB),diagonalMatrix(uB));
