@@ -437,6 +437,7 @@ sosIdeal(List,ZZ) := o -> (h,D) -> (
     -- D is a degree bound
     -- returns sos polynomial in <h>
     if odd D then error "D must be even";
+    R := ring h#0;
     (f,p) := genericCombination(h, D);
     (Q,mon,X,tval) := solveSOS (f, p, o);
     if Q==0 or norm Q<1e-6 then (
@@ -445,8 +446,7 @@ sosIdeal(List,ZZ) := o -> (h,D) -> (
     (g,d) := sosdec(Q,mon);
     kk := ring Q;
     if kk=!=QQ then(
-        X := gens ring h#0;
-        S := kk(monoid[X]);
+        S := kk(monoid[gens R]);
         g = for gi in g list sub(gi,S);
         h = for hi in h list sub(hi,S);
         );
