@@ -59,11 +59,41 @@ SOSPoly = new Type of HashTable
 
 -- constructor for sos decomposition
 sosPoly = method()
-sosPoly (List, List) := SOS => (polys, coeffs) -> (
+sosPoly (Ring, List, List) := SOS => (R, polys, coeffs) -> (
     new SOSPoly from {
-	gens => polys,
-	coefficients => coeffs
-	}
+        ring => R,
+        gens => polys,
+        coefficients => coeffs
+        }
+    )
+sosPoly (List, List) := SOS => (polys, coeffs) -> sosPoly(ring polys#0,polys,coeffs)
+
+ring SOSPoly := S -> S#ring
+
+gens SOSPoly := o -> S -> S#gens
+
+coefficients SOSPoly := o -> S -> S#coefficients
+
+length SOSPoly := S -> #(S#gens)
+
+sub(SOSPoly,Ring) := (S,R) -> 
+    sosPoly(for g in S#gens list sub(g,R), S#coefficients)
+
+net SOSPoly := S -> (
+    if #gens S == 0 then return "0";
+    return "coeffs:"||net coefficients S||"gens:"||net gens S;
+    )
+
+Number * SOSPoly := (a,S) -> (
+    if a<0 then error "scalar must be nonnegative";
+    if a==0 then return sosPoly(ring S, {}, {});
+    return sosPoly(ring S, gens S, a * coefficients S);
+    )
+
+SOSPoly + SOSPoly := (S,S') -> (
+    R := ring S;
+    if R =!= ring S' then error "different rings";
+    return sosPoly(R,S#gens|S'#gens, S#coefficients|S'#coefficients);
     )
 
 --##########################################################################--
@@ -99,7 +129,7 @@ sosdec = (Q,mon) -> (
      idx := positions (d, i->i!=0);
      d = d_idx;
      g = g_idx;
-     return sosPoly(g,d);
+     return sosPoly(ring mon,g,d);
      )
 
 solveSOS = method(
@@ -496,8 +526,7 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     kk := ring Q;
     S := kk(monoid[gens ring h#0]);
     if kk=!=QQ then(
-        g := for gi in a#gens list sub(gi,S);
-    	a = sosPoly (g, a#coefficients);
+        a = sub(a,S);
         h = for hi in h list sub(hi,S)
         );
     -- for some reason tval=0
@@ -508,36 +537,40 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     return (h, a);
     )
 
-cleanSOS = (g,d,tol) -> (
-    if g===null then return (,);
-    if coefficientRing ring g#0 === QQ then tol=0;
+cleanSOS = method()
+cleanSOS(SOSPoly,Number) := (s,tol) -> (
+    if s===null then return (,);
+    R := ring s;
+    if coefficientRing R === QQ then tol=0;
+    g := gens s;
+    d := coefficients s;
     I := positions(d, di -> di>tol);
-    return (g_I,d_I);
+    return sosPoly(R,g_I,d_I);
     )
 
 sosdecTernary = (f) -> (
     getmult := (fi,di) -> (
-        (h,g,w) := sospolyIdeal({fi},2*di-4);
-        if g===null then return;
-        s := sumSOS(g,w);
-        mult := (s // gens ideal(h))_(0,0);
-        return (h#0,mult);
+        (h,S) := sospolyIdeal({fi},2*di-4);
+        if S===null then return;
+        mult := (sumSOS S // gens ideal(h))_(0,0);
+        return (S,mult);
         );
     if numgens ring f =!= 3 then error "polynomial must involve 3 variables";
     fi := f;
-    Q := {};
+    S := {};
     di := first degree fi;
     while di > 4 do(
-        (fi',mult) := getmult(fi,di);
+        (Si,mult) := getmult(fi,di);
         if mult===null then return;
-        Qi := fi'*mult;
         fi = mult;
         di = first degree fi;
-        Q = append(Q,Qi);
+        S = append(S,Si);
         );
-    Q = append(Q,fi);
-    nums := for i to #Q-1 list if odd i then continue else Q#i;
-    dens := for i to #Q-1 list if even i then continue else Q#i;
+    (Q,mon,X) := solveSOS fi;
+    Si = sosdec(Q,mon);
+    S = append(S,Si);
+    nums := for i to #S-1 list if odd i then continue else S#i;
+    dens := for i to #S-1 list if even i then continue else S#i;
     return (nums,dens);
     )
 
