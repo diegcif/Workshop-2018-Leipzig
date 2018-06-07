@@ -1,4 +1,5 @@
 needsPackage( "SOS", Configuration=>{"CSDPexec"=>"CSDP/csdp"} )
+
 eigenVecLargestEigenval = (X, rndErr)  -> (
     if X === null then return; -- X null
     n := numRows X;
@@ -12,6 +13,7 @@ eigenVecLargestEigenval = (X, rndErr)  -> (
 
 minimizePoly = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false} )
+
 minimizePoly(RingElement,List,ZZ) := o -> (p,pars, rndErr) -> (
     ringp := ring p;
     tvar := symbol t;
@@ -34,7 +36,7 @@ minimizePoly(RingElement,List,ZZ) := o -> (p,pars, rndErr) -> (
 
 formPoly = (coeff, mon) -> sum apply (coeff, mon, (i,j)->i*j)
 
-genericCombination = (h, D) -> (
+genComb = (h, D) -> (
     -- h is a list of polynomials
     -- D is a maximumd degree
     R := ring h#0;
@@ -67,7 +69,7 @@ print(r);
 R=QQ[x,y,z];
 f = (x-1)^2 + (y-2)
 h = {x^2+y^2+z^2-1}
-(sh,p) = genericCombination(h, 2)
+(sh,p) = genComb(h, 2)
 S = ring sh
 f = sub(f,S)
 r = minimizePoly(f+sh, p, 3, RndTol=>12, Solver => "CSDP");
