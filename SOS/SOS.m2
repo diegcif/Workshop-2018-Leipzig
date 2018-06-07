@@ -83,7 +83,6 @@ sosdec = (Q,mon) -> (
 solveSOS = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false, TraceObj => false} )
 solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
-    if coefficientRing ring f =!= QQ then error "polynomial must be over QQ";
     if first degree objFcn > 1 then error("Only linear objective function allowed.");
     parBounded := false;
     if #bounds==2 then (
@@ -92,6 +91,12 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         parBounded = true;
     )else if #bounds!=0 then 
         error "expected a list with two elements";
+
+    kk := coefficientRing ring f;
+    if kk=!=QQ then (
+        F := roundpolys prepend(f,p);
+        f = F#0; p = drop(F,1);
+        );
          
     -- build SOS model --     
     (C,Ai,Bi,A,B,b,mon,GramIndex,LinSpaceIndex) := createSOSModel(f,p,Verbose=>o.Verbose);
@@ -123,12 +128,13 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         verbose( "Solving SOS feasibility problem...", o);
         obj = map(RR^(#Ai+#Bi),RR^1,i->0);
     );
-    --return (mon,C,Bi|Ai,obj);
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (Q,mon,X,);
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
+    if kk=!=QQ then
+        return (Q,changeField(mon,kk),X,pvec0);
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
@@ -142,6 +148,21 @@ solveSOS(RingElement,List) := o -> (f,p) ->
     solveSOS(f,p,0_(ring f),o)
 solveSOS(RingElement) := o -> (f) -> 
     drop(solveSOS(f,{},o),-1)
+
+roundpolys = (F) -> (
+    liftmon := (S,x) -> S_(first exponents x);
+    R := ring F#0;
+    S := QQ(monoid[gens R]);
+    F' := for f in F list(
+        (mon,coef) := coefficients f;
+        phi := map(S,R);
+        mon = matrix {liftmon_S \ flatten entries mon};
+        K := 2^32;
+        coef = matrix(QQ, {for c in flatten entries coef list round(K*sub(c,RR))/K});
+        f' := (mon*transpose coef)_(0,0);
+        f' );
+    return F';
+    )
 
 roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndTol) -> (
     -- round and project --
@@ -403,11 +424,11 @@ blkDiag = args -> (
 -- SOS IDEAL
 --###################################
 
-genericCombination = (h, D) -> (
+dotProd = (a, b) -> sum apply (a, b, (i,j)->i*j);
+genericCombination = (h, D, homog) -> (
     -- h is a list of polynomials
     -- D is a maximumd degree
     -- returns generic combination of the
-    formPoly := (coeff, mon) -> sum apply (coeff, mon, (i,j)->i*j);
     if #h==0 then error "list of polynomials is empty";
     if D < max\\first\degree\h then
         error "increase degree bound";
@@ -416,7 +437,8 @@ genericCombination = (h, D) -> (
     p := symbol p;
     mon := for i to #h-1 list (
         di := D - first degree h#i;
-        flatten entries basis (0,di,R)
+        b := if homog then basis(di,R) else basis(0,di,R);
+        flatten entries b
         );
     -- ring of parameters
     pvars := for i to #h-1 list
@@ -425,9 +447,10 @@ genericCombination = (h, D) -> (
     pvars = for i to #h-1 list apply (pvars#i, m->S_m);
     -- polynomial multipliers
     g := for i to #h-1 list
-        formPoly ( pvars#i , apply (mon#i, m -> sub (m, S)) );
-    F := sum apply (h,g, (i,j)->sub(i,S)*j);
-    return (F,flatten pvars);
+        dotProd ( pvars#i , apply (mon#i, m -> sub (m, S)) );
+    h = apply(h, hi -> sub(hi,S));
+    F := dotProd(h,g);
+    return (F,flatten pvars,g);
     )
 
 sosIdeal = method(
@@ -437,19 +460,23 @@ sosIdeal(List,ZZ) := o -> (h,D) -> (
     -- D is a degree bound
     -- returns sos polynomial in <h>
     if odd D then error "D must be even";
-    R := ring h#0;
-    (f,p) := genericCombination(h, D);
+    homog := all(h, hi -> isHomogeneous hi);
+    (f,p,mult) := genericCombination(h, D, homog);
     (Q,mon,X,tval) := solveSOS (f, p, o);
     if Q==0 or norm Q<1e-6 then (
         print("no sos polynomial in degree "|D);
-        return (,) );
+        return (,,) );
     (g,d) := sosdec(Q,mon);
     kk := ring Q;
+    S := kk(monoid[gens ring h#0]);
     if kk=!=QQ then(
-        S := kk(monoid[gens R]);
         g = for gi in g list sub(gi,S);
         h = for hi in h list sub(hi,S);
         );
+    -- for some reason tval=0
+    -- T := kk(monoid[gens ring f]);
+    -- dic := for i to #p-1 list sub(p#i,T) => tval#i;
+    -- mult = for m in mult list sub(sub(sub(m,T),dic),S);
     return (h,g,d);
     )
 
