@@ -546,6 +546,7 @@ sosdecTernary = method(
      Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
 sosdecTernary(RingElement) := o -> (f) -> (
     if numgens ring f =!= 3 then error "polynomial must involve 3 variables";
+    if not isHomogeneous f then error "polynomial must be homogeneous";
     fi := f;
     S := {};
     di := first degree fi;
@@ -557,6 +558,7 @@ sosdecTernary(RingElement) := o -> (f) -> (
         S = append(S,Si);
         );
     (Q,mon,X) := solveSOS fi;
+    if Q===null then return;
     Si = sosdec(Q,mon);
     S = append(S,Si);
     nums := for i to #S-1 list if odd i then continue else S#i;

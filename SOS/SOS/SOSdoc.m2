@@ -414,16 +414,17 @@ doc /// --solveSDP
         Then "M2" solver might fail to compute the solution if the problem is not strictly feasible.
     SeeAlso
 ///
+
 doc /// --sosdecTernary
     Key
         sosdecTernary
     Headline
-       Sum of squares decomposition for ternary polynomials.
+       Sum of squares decomposition for ternary forms.
     Usage
         (p,q) = sosdecTernary(f, Solver=>"CSDP")
     Inputs
         f:RingElement
-          a polynomial in 3 variables
+          a homogeneous polynomial in 3 variables
     Outputs
         p:List
           of sum of squares
@@ -432,15 +433,16 @@ doc /// --sosdecTernary
     Consequences
     Description
       Text
-        This method gives a decomposition of a non-negative ternary polynomial as sum of squares of rational polynomials.
+        Given a non-negative ternary form $f$, this method uses Hilbert's algorithm to compute a decomposition of $f$ as sum of squares of rational polynomials:
         $$f=\frac{\prod_ip_i}{\prod_iq_i}$$
-        The method uses Hilbert's algorithm. 
-        This implementation only works with the solver CSDP.
+        The method returns null if $f$ is not non-negative.
 	
         {\bf References:}
         de Klerk, Etienne and Pasechnik, Dmitrii V.: Products of positive forms, linear matrix inequalities, and Hilbert 17th problem for ternary forms, European J. Oper. Res., 39-45 (2004).
-        
+    Caveat
+        This implementation only works with the solver CSDP.
 ///
+
 doc /// --sospolyIdeal
     Key
         sospolyIdeal
