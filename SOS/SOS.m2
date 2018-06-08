@@ -609,6 +609,7 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
             y => x_i );
     return (bound, sol);
     )
+lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},o)
 
 lasserreHierarchy = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )

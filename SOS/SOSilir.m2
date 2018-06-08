@@ -4,7 +4,7 @@ needsPackage( "SOS", Configuration=>{"CSDPexec"=>"CSDP/csdp"} )
 R=QQ[x];
 --f = x^2+y^2+1;
 f = (x-1)^2 + (x+3)^2;
-r = lowerBound(f, {}, RndTol=>12, Solver => "CSDP");
+r = lowerBound(f, RndTol=>12, Solver => "CSDP");
 print(r);
 
 -- minimize f(x) subject to h(x) = 0
@@ -17,5 +17,5 @@ print(r);
 R=QQ[x,y];
 f = x^2 + y^2
 h = {x^2*y-1}
-r = lasserreHierarchy(f,h,4, RndTol=>12, Solver => "CSDP")
+r = lasserreHierarchy(f,h,4, RndTol=>12, Solver => "M2")
 print(r);
