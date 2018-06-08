@@ -518,17 +518,15 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     homog := all(h, isHomogeneous);
     (f,p) := genericCombination(h, D, homog);
     (Q,mon,X,tval) := solveSOS (f, p, o); --for some reason tval=0
-    if Q==0 or norm Q<1e-6 then (
+    if Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
 	);
     a := sosdec(Q,mon);
     kk := ring Q;
     S := kk(monoid[gens ring h#0]);
-    if kk=!=QQ then(
-        a = sub(a,S);
-        h = for hi in h list sub(hi,S)
-        );
+    a = sub(a,S);
+    h = for hi in h list sub(hi,S);
     mult := flatten entries (sumSOS a // gens ideal(h));
     return (a,mult);
     )
@@ -579,6 +577,8 @@ solveSDP(Matrix, Matrix, Matrix, Matrix) := o -> (C,A,b,y) -> solveSDP(C,sequenc
 
 solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     (ok,y,X,Z) := (,,,);
+    (ok,y,X,Z) = sdpNoConstraints(C,A,b);
+    if ok then return (y,X,Z);
     if o.Solver == "M2" then(
         (ok,y,X,Z) = trivialSDP(C,A,b);
         if ok then return (y,X,Z)
@@ -595,11 +595,29 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
 
 solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
     (ok,y,X,Z) := (,,,);
+    (ok,y,X,Z) = sdpNoConstraints(C,A,b);
+    if ok then return (y,X,Z);
     if o.Solver != "M2" then return solveSDP(C,A,b,o);
     (ok,y,X,Z) = trivialSDP(C,A,b);
     if ok then return (y,X,Z);
     (y,Z) = simpleSDP(C,A,b,y0,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose);
     return (y,,Z);
+)
+
+sdpNoConstraints = (C,A,b) -> (
+    C = promote (C,RR);
+    if #A==0 then(
+        lambda := min eigenvalues(C, Hermitian=>true);
+        if lambda>=0 then(
+            print "SDP solved";
+            y0 := map(RR^#A,RR^1,i->0);
+            return (true, y0, 0*C, C); 
+        )else(
+            print "dual infeasible";
+            return (true,,,); 
+            );
+        );
+    return (false,,,);
 )
 
 -- check trivial cases
