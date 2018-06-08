@@ -37,6 +37,8 @@ export {
     "genericCombination",
     "cleanSOS",
     "sospolyIdeal",
+    "lowerBound",
+    "lasserreHierarchy",
 --debugging
     "createSOSModel",
     "choosemonp",
@@ -49,6 +51,7 @@ export {
     "WorkingPrecision",
     "Solver",
     "TraceObj",
+    "EigTol",
     "sos"
 }
 
@@ -567,6 +570,67 @@ sosdecTernary(RingElement) := o -> (f) -> (
     )
 
 --###################################
+-- SOS OPTIMIZATION
+--###################################
+
+rank1factor = method(
+     Options => {EigTol => 1e-4} )
+rank1factor(Matrix) := o -> (X) -> (
+    n := numRows X;
+    (e, V) := eigenvectors(X,Hermitian=>true);
+    if e#0 < 0 then return; -- X not PSD
+    if e#(n-2) > o.EigTol then return; -- not rank one
+    v := sqrt abs(e#(n-1)) * V_{n-1};
+    retval := flatten entries v;
+    return retval;
+    )
+
+lowerBound = method(
+     Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+
+lowerBound(RingElement,List) := o -> (f,pars) -> (
+    -- sos lower bound for the polynomial f
+    o' := new OptionTable from 
+        {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
+    R := ring f;
+    tvar := local t;
+    coeffp := coefficientRing R;
+    newR := coeffp[gens R | {tvar}];
+    phi := map(newR, R);
+    tpoly := last gens newR;
+    (Q, mon, X, tval) := solveSOS(phi(f)-tpoly,{tpoly}|phi\pars,-tpoly, o');
+    if Q===null then return (,);
+    bound := first tval;
+    x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
+    sol := if x===null then {}
+        else for i to numRows mon-1 list (
+            y := mon_(i,0);
+            if first degree y!=1 then continue;
+            y => x_i );
+    return (bound, sol);
+    )
+
+lasserreHierarchy = method(
+     Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
+    -- Lasserre hierarchy for the problem
+    -- min f(x) s.t. h(x)=0
+    if odd D then error "D must be even";
+    if D < max\\first\degree\(h|{f}) then
+        error "increase degree bound";
+    if all(h|{f}, isHomogeneous) then
+        error "problem is homogeneous";
+    R := ring f;
+    (H,p) := genericCombination(h, D, false);
+    S := ring H;
+    f = sub(f,S);
+    (bound,sol) := lowerBound(f+H, p, o);
+    if bound===null then return (,);
+    sol = for p in sol list sub(p#0,R)=>p#1;
+    return (bound,sol);
+    )
+
+--###################################
 -- SDP SOLVER
 --###################################
 
@@ -809,7 +873,9 @@ readCSDP = (fout,fout2,n,Verbose) -> (
     X := sdpa2matrix(S2); -- dual solution
     -- READ STATUS
     text := get openIn fout2;
-    s := first select(lines text, l -> match("Success",l));
+    s := select(lines text, l -> match("Success",l));
+    if #s==0 then( print "SDP failed"; return (,,) );
+    s = first s;
     print if Verbose then text else s;
     if match("SDP solved",s) then null
     else if match("primal infeasible",s) then X=null
