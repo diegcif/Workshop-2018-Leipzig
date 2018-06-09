@@ -1,0 +1,87 @@
+#########################
+##### NEW FUNCTIONS #####
+#########################
+
+Implement the following methods
+
+1) SOSPoly * SOSPoly
+2) SOSPoly ^ ZZ
+
+Improve the following methods
+
+3) net(SOSPoly)
+
+#########################
+######## TESTING ########
+#########################
+
+Implement tests for the following methods
+
+1) sosPoly
+2) sumSOS
+3) cleanSOS
+4) sub(SOSPoly,Ring)
+5) SOSPoly * SOSPoly
+6) SOSPoly ^ ZZ
+7) sosdec
+8) toRing
+9) roundPSDmatrix
+10) blkDiag
+11*) LDLdecomposition
+12) genericCombination
+13*) choosemonp
+
+The following methods need a test that accepts the Solver as an input
+
+14*) solveSDP
+15*) solveSOS
+16) sosdecTernary
+17) sospolyIdeal
+18) lowerBound
+19) lasserreHierarchy
+
+The methods marked with (*) already have some tests, but need more.
+
+NOTE: All methods must be tested with inputs over QQ and over RR.
+
+#########################
+####### DEBUGGING #######
+#########################
+
+Known bugs:
+
+1) sospolyIdeal: the SDP shouldn't return a zero vector of parameters
+
+#########################
+##### DOCUMENTATION #####
+#########################
+
+Methods without documentation
+
+1) sosPoly
+2) cleanSOS
+3) toRing
+4) sub(SOSPoly,Ring)
+5) SOSPoly * SOSPoly
+6) genericCombination
+
+Methods whose documentation needs improvement
+
+7) sumSOS
+8) roundPSDmatrix
+9) choosemonp
+10) lowerBound
+11) lasserreHierarchy
+
+#########################
+######### PAPER #########
+#########################
+
+Sketch of the paper (might change)
+
+1) brief introduction to SOS, nonnegativity, polynomial optimization
+2) computing SOS decompositions (Motzkin, Robinson, Lax-Lax)
+2) computing SOS decompositions of ternary forms (Harris)
+3) parametrized SOS problems
+4) SOS optimization (lowerBound, lasserreHierarchy)
+

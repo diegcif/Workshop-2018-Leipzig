@@ -33,7 +33,7 @@ export {
     "blkDiag",
     "LDLdecomposition",
     "solveSDP",
-    "checkSolver",
+    "checkSolveSDP",
     "genericCombination",
     "cleanSOS",
     "sospolyIdeal",
@@ -44,7 +44,7 @@ export {
     "choosemonp",
     "project2linspace",
     "roundPSDmatrix",
-    "changeField",
+    "toRing",
 --Method options
     "RndTol",
     "UntilObjNegative",
@@ -54,6 +54,13 @@ export {
     "EigTol",
     "sos"
 }
+
+--##########################################################################--
+-- GLOBAL VARIABLES 
+--##########################################################################--
+
+csdpexec=((options SOS).Configuration)#"CSDPexec"
+sdpaexec=((options SOS).Configuration)#"SDPAexec"
 
 --##########################################################################--
 -- TYPES
@@ -100,12 +107,22 @@ SOSPoly + SOSPoly := (S,S') -> (
     return sosPoly(R,S#gens|S'#gens, S#coefficients|S'#coefficients);
     )
 
---##########################################################################--
--- GLOBAL VARIABLES 
---##########################################################################--
+sumSOS = method()
 
-csdpexec=((options SOS).Configuration)#"CSDPexec"
-sdpaexec=((options SOS).Configuration)#"SDPAexec"
+sumSOS (List, List) := (g,d) -> sum for i to #g-1 list g_i^2 * d_i
+
+sumSOS SOSPoly := a -> sum for i to #(a#gens)-1 list a#gens_i^2 * a#coefficients_i
+
+cleanSOS = method()
+cleanSOS(SOSPoly,Number) := (s,tol) -> (
+    if s===null then return (,);
+    R := ring s;
+    if coefficientRing R === QQ then tol=0;
+    g := gens s;
+    d := coefficients s;
+    I := positions(d, di -> di>tol);
+    return sosPoly(R,g_I,d_I);
+    )
 
 --##########################################################################--
 -- METHODS
@@ -116,12 +133,6 @@ verbose = (s,o) -> if o.Verbose then print s
 --###################################
 -- solveSOS
 --###################################
-
-sumSOS = method()
-
-sumSOS (List, List) := (g,d) -> sum for i to #g-1 list g_i^2 * d_i
-
-sumSOS SOSPoly := a -> sum for i to #(a#gens)-1 list a#gens_i^2 * a#coefficients_i
 
 sosdec = (Q,mon) -> (
      if mon===null or Q===null then return (,);
@@ -150,8 +161,9 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
 
     kk := coefficientRing ring f;
     if kk=!=QQ then (
-        F := roundpolys prepend(f,p);
-        f = F#0; p = drop(F,1);
+        S := changeRingField(QQ,ring f);
+        f = toRing_S f;
+        p = toRing_S \ p;
         );
          
     -- build SOS model --     
@@ -191,13 +203,13 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
     if kk=!=QQ then
-        return (Q,changeField(mon,kk),X,pvec0);
+        return (Q,changePolyField(kk,mon),X,pvec0);
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
     if ok then return (Qp,mon,X,pVec);
     print "rounding failed, returning real solution";
-    return (Q,changeField(mon,RR),X,pvec0);
+    return (Q,changePolyField(RR,mon),X,pvec0);
     )
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
     solveSOS(f,p,objFcn,{},o)
@@ -206,20 +218,25 @@ solveSOS(RingElement,List) := o -> (f,p) ->
 solveSOS(RingElement) := o -> (f) -> 
     drop(solveSOS(f,{},o),-1)
 
-roundpolys = (F) -> (
-    -- rounds real polynomials into rationals
-    liftmon := (S,x) -> S_(first exponents x);
-    R := ring F#0;
-    S := QQ(monoid[gens R]);
-    F' := for f in F list(
-        (mon,coef) := coefficients f;
-        phi := map(S,R);
-        mon = matrix {liftmon_S \ flatten entries mon};
-        K := 2^32;
-        coef = matrix(QQ, {for c in flatten entries coef list round(K*sub(c,RR))/K});
-        f' := (mon*transpose coef)_(0,0);
-        f' );
-    return F';
+changeRingField = (kk,R) -> kk(monoid[gens R])
+
+changePolyField = (kk,f) -> toRing(changeRingField(kk,ring f), f)
+
+toRing = (S,f) -> (
+    -- maps f to ring S
+    R := ring f;
+    kk := coefficientRing R;
+    phi := map(S,R);
+    -- QQ => RR
+    if kk===QQ then return phi(f);
+    -- RR => QQ
+    liftmon := (x) -> S_(first exponents x);
+    (mon,coef) := coefficients f;
+    mon = matrix {liftmon \ flatten entries mon};
+    K := 2^32;
+    coef = matrix(QQ, {for c in flatten entries coef list round(K*sub(c,RR))/K});
+    f' := (mon*transpose coef)_(0,0);
+    return f';
     )
 
 roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndTol) -> (
@@ -243,14 +260,6 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndT
         );
     pVec = if np!=0 then flatten entries pVec else null;
     return (ok,Qp,pVec);
-    )
-
-changeField = (f,kk) -> (
-    R := ring f;
-    X := gens R;
-    S := kk(monoid[X]);
-    phi := map(S,R);
-    return phi(f);
     )
 
 createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
@@ -532,17 +541,6 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     h = for hi in h list sub(hi,S);
     mult := flatten entries (sumSOS a // gens ideal(h));
     return (a,mult);
-    )
-
-cleanSOS = method()
-cleanSOS(SOSPoly,Number) := (s,tol) -> (
-    if s===null then return (,);
-    R := ring s;
-    if coefficientRing R === QQ then tol=0;
-    g := gens s;
-    d := coefficients s;
-    I := positions(d, di -> di>tol);
-    return sosPoly(R,g_I,d_I);
     )
 
 sosdecTernary = method(
@@ -939,9 +937,13 @@ readSDPA = (fout,n,Verbose) -> (
     return (y,X,Z);
     )
 
---checkSolver
+--###################################
+-- Methods for testing
+--###################################
 
-checkSolver = (solver) -> (
+--checkSolveSDP
+
+checkSolveSDP = (solver) -> (
     tol := .001;
     equal := (y0,y) -> y=!=null and norm(y0-y)<tol*(1+norm(y0));
     ---------------TEST0---------------
@@ -989,6 +991,11 @@ checkSolver = (solver) -> (
     test := {t0,t1,t2,t3};
     for i to 3 do
         if not test#i then print("test"|i|" failed");
+    -- trivial cases
+    (y,X,Z) = solveSDP (matrix{{1,0},{0,-1}},(),matrix{{}},Solver=>solver);
+    assert(y===null and X===null);
+    (y,X,Z) = solveSDP (matrix{{1,0},{0,1}},(),matrix{{}},Solver=>solver);
+    assert(y==0);
     return test;
 )
 
@@ -1000,7 +1007,7 @@ beginDocumentation()
 
 load "./SOS/SOSdoc.m2"
 
-TEST /// --good cases
+TEST /// --solveSOS (good cases)
     R = QQ[x,y];
     f = 4*x^4+y^4;
     (Q,mon,X) = solveSOS f
@@ -1031,7 +1038,7 @@ TEST /// --good cases
     assert( sub(f,t=>tval#0) == transpose(mon)*Q*mon )
 ///
 
-TEST /// --bad cases
+TEST /// --solveSOS (bad cases)
     R = QQ[x,y,t];
     f = x^4*y^2 + x^2*y^4 - 3*x^2*y^2 + 1 --Motzkin
     (Q,mon,X) = solveSOS(f); 
@@ -1040,7 +1047,7 @@ TEST /// --bad cases
     assert( Q === null )
 ///
 
-TEST /// --Newton polytope
+TEST /// --choosemonp
     R = QQ[x,y,t];
     f = x^4+2*x*y-x+y^4
     (lmf,lmsos) = choosemonp(f,{}, Verbose=>true)
@@ -1049,7 +1056,7 @@ TEST /// --Newton polytope
     assert( #lmsos == 6 )
 ///
         
-TEST /// --LDL
+TEST /// --LDLdecomposition
 --  Simple example
     A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
     (L,D,P,err) = LDLdecomposition A
@@ -1065,6 +1072,6 @@ TEST /// --LDL
 ///
 
 TEST /// --solveSDP
-    test := checkSolver("M2")
-    assert(test#0 and test#1 and test#2)
+    test := checkSolveSDP("M2")
+    assert(test#0 and test#1 and test#2) --(test3 fails)
 ///

@@ -527,13 +527,13 @@ doc /// --lasserreHierarchy
         lowerBound
 ///
 
-doc /// --checkSolver
+doc /// --checkSolveSDP
     Key
-        checkSolver
+        checkSolveSDP
     Headline
         tests method "solveSDP" (for developers)
     Usage
-        checkSolver solver
+        checkSolveSDP solver
     Inputs
         solver:String
           either "M2" or "CSDP"
