@@ -592,8 +592,7 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     R := ring f;
     tvar := local t;
-    coeffp := coefficientRing R;
-    newR := coeffp[gens R | {tvar}];
+    newR := newRing (R, Variables=> gens R| {tvar});
     phi := map(newR, R);
     tpoly := last gens newR;
     (Q, mon, X, tval) := solveSOS(phi(f)-tpoly,{tpoly}|phi\pars,-tpoly, o');

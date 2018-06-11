@@ -51,6 +51,7 @@ NOTE: All methods must be tested with inputs over QQ and over RR.
 Known bugs:
 
 1) sospolyIdeal: the SDP shouldn't return a zero vector of parameters
+2) file SOSIlir doesn't run
 
 #########################
 ##### DOCUMENTATION #####
