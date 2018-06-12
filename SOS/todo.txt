@@ -51,7 +51,16 @@ NOTE: All methods must be tested with inputs over QQ and over RR.
 Known bugs:
 
 1) sospolyIdeal: the SDP shouldn't return a zero vector of parameters
+
 2) file SOSIlir doesn't run
+
+3) This input fails:
+restart
+needsPackage ("SOS" , Configuration => { "CSDPexec" => "CSDP/csdp"})
+R = QQ[x,y,z]
+f = z 
+h1 = x^2 + y^2 + z^2 - 1
+(m,s)= lasserreHierarchy (f, {h1}, 6, Solver=>"CSDP")
 
 #########################
 ##### DOCUMENTATION #####
