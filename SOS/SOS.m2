@@ -147,9 +147,16 @@ sosdec = (Q,mon) -> (
     return sosPoly(ring mon,g,d);
     )
 
+-- This is the main method to decompose a polynomial as a 
+-- sum of squares using an SDP solver.
 solveSOS = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false, TraceObj => false} )
+ 
 solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
+    -- f is a polynomial to decompose
+    -- p is a list of variables of f that are interpreted as parameters
+    -- objFcn is a linear objective function for the SDP solver
+    -- bounds can be empty or contain upper and lower bounds for the parameters
     if first degree objFcn > 1 then error("Only linear objective function allowed.");
     parBounded := false;
     if #bounds==2 then (
@@ -211,6 +218,8 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     print "rounding failed, returning real solution";
     return (Q,changePolyField(RR,mon),X,pvec0);
     )
+
+-- Variants of solveSOS with fewer arguments
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
     solveSOS(f,p,objFcn,{},o)
 solveSOS(RingElement,List) := o -> (f,p) -> 
@@ -283,7 +292,7 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
     Hf := hashTable transpose {flatten entries cf#0, flatten entries cf#1};
     K := keys HHHm;
     
-    -- Linear constraints: b     
+    -- Linear constraints: b
     b := transpose matrix(QQ,{apply (K, k-> (if Hf#?k then substitute(Hf#k,QQ) else 0))});
     
     -- Linear constraints: Ai, Bi
