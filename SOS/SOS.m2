@@ -617,6 +617,7 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
     )
 lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},o)
 
+-- Minimize a polynomial on an algebraic set using SDP relaxations:
 lasserreHierarchy = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
 lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
@@ -1082,4 +1083,12 @@ TEST /// --LDLdecomposition
 TEST /// --solveSDP
     test := checkSolveSDP("M2")
     assert(test#0 and test#1 and test#2) --(test3 fails)
+///
+
+TEST /// --lasserreHierarchy
+    R = QQ[x,y,z]
+    f = -z
+    h1 = x^2 + y^2 + z^2 - 1
+    (minb, sol) = lasserreHierarchy (f, {h1}, 4)
+    assert (abs(1-minb) < 1e-6)
 ///
