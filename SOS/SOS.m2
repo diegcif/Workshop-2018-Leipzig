@@ -135,17 +135,17 @@ verbose = (s,o) -> if o.Verbose then print s
 --###################################
 
 sosdec = (Q,mon) -> (
-     if mon===null or Q===null then return (,);
-     (L,D,P,err) := LDLdecomposition(Q);
-     if err != 0 then error ("Gram Matrix is not positive semidefinite");
-     n := numRows Q;
-     g := toList flatten entries (transpose mon * transpose inverse P * L);
-     d := apply(toList(0..n-1),i->D_(i,i));
-     idx := positions (d, i->i!=0);
-     d = d_idx;
-     g = g_idx;
-     return sosPoly(ring mon,g,d);
-     )
+    if mon===null or Q===null then return (,);
+    (L,D,P,err) := LDLdecomposition(Q);
+    if err != 0 then error ("Gram Matrix is not positive semidefinite");
+    n := numRows Q;
+    g := toList flatten entries (transpose mon * transpose inverse P * L);
+    d := apply(toList(0..n-1),i->D_(i,i));
+    idx := positions (d, i->i!=0);
+    d = d_idx;
+    g = g_idx;
+    return sosPoly(ring mon,g,d);
+    )
 
 solveSOS = method(
      Options => {RndTol => -3, Solver=>"M2", Verbose => false, TraceObj => false} )
@@ -172,7 +172,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
 
     ndim := numRows C;
     mdim := #Ai;
-    
+
     if #p!=0 and objFcn!=0 then (
         -- compute an optimal solution --
         verbose("Solving SOS optimization problem...", o);
@@ -263,71 +263,71 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndT
     )
 
 createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
-     -- Degree and number of variables
-     n := numgens ring f;
-     d := (first degree f)//2;
-     -- Get list of monomials for SOS decomposition
-     (lmf,lm) := choosemonp (f,p,o);
-     if #lm==0 then return (,,,,,,lm,,);
-             
-     Hm := hashTable apply(lm, toList(1..#lm), identity);
-     HHm := combine(Hm,Hm,times,(j,k)-> if j>=k then (j,k) else () , join );
-     HHHm := applyValues(HHm,k->pack(2,k));
-     -- This is a hash table that maps monomials into pairs of indices
-     -- Writes the matrix, in sparse form
-     ndim := #lm; -- binomial(n+d,d);
-     mdim := #HHHm; --binomial(n+2*d,2*d);
-
-     -- A hash table with the coefficients (should be an easier way)
-     cf := coefficients f ;
-     Hf := hashTable transpose {flatten entries cf#0, flatten entries cf#1};
-     K := keys HHHm;
-
-     -- Linear constraints: b     
-     b := transpose matrix(QQ,{apply (K, k-> (if Hf#?k then substitute(Hf#k,QQ) else 0))});
-
-     -- Linear constraints: Ai, Bi
-     Ah := new MutableHashTable;
-     Bh := new MutableHashTable;
-     LinSpaceDim := floor(ndim^2/2+ndim/2);
-     LinSpaceIndex := hashTable apply (flatten values HHHm, toList(0..LinSpaceDim-1),identity);
-     GramIndex := applyPairs (LinSpaceIndex, (i,j)->(j,i));
-     for k from 0 to #K-1 do (
-      -- Set constraints for monomial K#k 
-           PairsEntries := toList HHHm#(K#k) ;
-      scan(PairsEntries, p -> (
+    -- Degree and number of variables
+    n := numgens ring f;
+    d := (first degree f)//2;
+    -- Get list of monomials for SOS decomposition
+    (lmf,lm) := choosemonp (f,p,o);
+    if #lm==0 then return (,,,,,,lm,,);
+    
+    Hm := hashTable apply(lm, toList(1..#lm), identity);
+    HHm := combine(Hm,Hm,times,(j,k)-> if j>=k then (j,k) else () , join );
+    HHHm := applyValues(HHm,k->pack(2,k));
+    -- This is a hash table that maps monomials into pairs of indices
+    -- Writes the matrix, in sparse form
+    ndim := #lm; -- binomial(n+d,d);
+    mdim := #HHHm; --binomial(n+2*d,2*d);
+    
+    -- A hash table with the coefficients (should be an easier way)
+    cf := coefficients f ;
+    Hf := hashTable transpose {flatten entries cf#0, flatten entries cf#1};
+    K := keys HHHm;
+    
+    -- Linear constraints: b     
+    b := transpose matrix(QQ,{apply (K, k-> (if Hf#?k then substitute(Hf#k,QQ) else 0))});
+    
+    -- Linear constraints: Ai, Bi
+    Ah := new MutableHashTable;
+    Bh := new MutableHashTable;
+    LinSpaceDim := floor(ndim^2/2+ndim/2);
+    LinSpaceIndex := hashTable apply (flatten values HHHm, toList(0..LinSpaceDim-1),identity);
+    GramIndex := applyPairs (LinSpaceIndex, (i,j)->(j,i));
+    for k from 0 to #K-1 do (
+	-- Set constraints for monomial K#k 
+	PairsEntries := toList HHHm#(K#k) ;
+      	scan(PairsEntries, p -> (
                 if p_0 == p_1 then Ah#(k,LinSpaceIndex#p)=1_QQ else Ah#(k,LinSpaceIndex#p)=2_QQ;)
-                  );
-       -- Consider search-parameters:
-      for i from 0 to #p-1 do (
-            mp := K#k*p_i;
-            if Hf#?mp then Bh#(k,i) = -leadCoefficient Hf#mp;
-            );
-      );
-   
-     A := map(QQ^#K,QQ^(LinSpaceDim),(i,j) -> if Ah#?(i,j) then Ah#(i,j) else 0);
-     B := map(QQ^#K,QQ^#p,(i,j) -> if Bh#?(i,j) then Bh#(i,j) else 0);
-                      
-     -- compute the C matrix
-     c := b//A;
-     C := map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then c_(LinSpaceIndex#{i+1,j+1},0) 
-      else c_(LinSpaceIndex#{j+1,i+1},0));
-     -- compute the B_i matrices
-     if #p!=0 then (
-           bi := -B//A;
-           Bi := apply(0..#p-1, k->
-                map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then bi_(LinSpaceIndex#{i+1,j+1},k)
-                   else bi_(LinSpaceIndex#{j+1,i+1},k)));
-      ) else Bi = ();
-     -- compute the A_i matrices     
-     v := - generators kernel A;
-     
-     Ai := apply(0..(rank v) - 1,k ->
-       map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then v_(LinSpaceIndex#{i+1,j+1},k) 
-           else v_(LinSpaceIndex#{j+1,i+1},k))); 
-          
-     (C,Ai,Bi,A,B,b,transpose matrix {lm},GramIndex,LinSpaceIndex)
-     )
+	    );
+    -- Consider search-parameters:
+    for i from 0 to #p-1 do (
+	mp := K#k*p_i;
+	if Hf#?mp then Bh#(k,i) = -leadCoefficient Hf#mp;
+	);
+    );
+
+    A := map(QQ^#K,QQ^(LinSpaceDim),(i,j) -> if Ah#?(i,j) then Ah#(i,j) else 0);
+    B := map(QQ^#K,QQ^#p,(i,j) -> if Bh#?(i,j) then Bh#(i,j) else 0);
+
+    -- compute the C matrix
+    c := b//A;
+    C := map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then c_(LinSpaceIndex#{i+1,j+1},0)
+      	else c_(LinSpaceIndex#{j+1,i+1},0));
+    -- compute the B_i matrices
+    if #p!=0 then (
+	bi := -B//A;
+	Bi := apply(0..#p-1, k->
+	    map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then bi_(LinSpaceIndex#{i+1,j+1},k)
+		else bi_(LinSpaceIndex#{j+1,i+1},k)));
+      	) else Bi = ();
+    -- compute the A_i matrices     
+    v := - generators kernel A;
+
+    Ai := apply(0..(rank v) - 1,k ->
+	map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then v_(LinSpaceIndex#{i+1,j+1},k) 
+            else v_(LinSpaceIndex#{j+1,i+1},k))); 
+
+    (C,Ai,Bi,A,B,b,transpose matrix {lm},GramIndex,LinSpaceIndex)
+    )
 
 choosemonp = {Verbose=>false} >> o -> (f,p) -> (
      filterVerts := (verts) -> (
