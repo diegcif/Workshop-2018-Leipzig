@@ -9,7 +9,9 @@ sospolyMultiply(SOSPoly,SOSPoly):= (p1,p2)-> (
     q1=sum(for i from 0 to #p1#coefficients-1 list p1#coefficients_i*sqpol1_i);
     sqpol2=apply(p2#gens,i->i^2);
     q2=sum(for i from 0 to #p2#coefficients-1 list p2#coefficients_i*sqpol2_i);
-    return(q1*q2);
+    (Q1,mon1,X1) = solveSOS (q1*q2, Solver=>"CSDP");
+    g1 = sosdec (Q1,mon1);
+    return(g1);
     )
 
 
@@ -24,7 +26,9 @@ sospolyPower(SOSPoly,ZZ) := (p1,D)->(
     if D<0 then error "power should be a positive number.";
     sqpol1=apply(p1#gens,i->i^2);
     p2=sum(for i from 0 to #p1#coefficients-1 list p1#coefficients_i*sqpol1_i);
-    return(p2^D);
+    (Q1,mon1,X1) = solveSOS (p2^D, Solver=>"CSDP");
+    g1 = sosdec (Q1,mon1);
+    return(g1);
     )
 --sospolyPower(g2,1)
 
