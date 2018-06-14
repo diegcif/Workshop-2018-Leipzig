@@ -13,8 +13,19 @@ sospolyMultiply(SOSPoly,SOSPoly):= (g1,g2)-> (
     )
 
 
+--EXAMPLE
+R = QQ[x,y,z]
+h = x^2 + y^2 + z^2
+-- the Motzkin polynomial + Co
+f1 = x^4*y^2 + x^2*y^4 + z^6 - 3*x^2 *y^2 * z^2 --Motzkin
+(Q1,mon1,X1) = solveSOS (f1*h, Solver=>"CSDP")
+g1 = sosdec (Q1,mon1)
 
---p1=sospolyMultiply(g1,g2)
+--Robinson
+f2 = x^6 + y^6 + z^6 - (x^4*y^2 + x^2*y^4 + x^4*z^2 + x^2*z^4 + y^4*z^2 + y^2*z^4) + 3*x^2*y^2*z^2 --Robinson
+(Q2,mon2,X2) = solveSOS (f2*h, Solver=>"CSDP")
+g2 = sosdec (Q2,mon2)
+p1=sospolyMultiply(g1,g2)
 
 
 
