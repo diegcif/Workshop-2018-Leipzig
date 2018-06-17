@@ -529,7 +529,7 @@ genericCombination = (h, D, homog) -> (
         dotProd ( pvars#i , apply (mon#i, m -> sub (m, S)) );
     h = apply(h, hi -> sub(hi,S));
     F := dotProd(h,g);
-    return (F,flatten pvars);
+    return (F,flatten pvars,g);
     )
 
 sospolyIdeal = method(
@@ -540,8 +540,8 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     -- returns sos polynomial in <h>
     if odd D then error "D must be even";
     homog := all(h, isHomogeneous);
-    (f,p) := genericCombination(h, D, homog);
-    (Q,mon,X,tval) := solveSOS (f, p, o); --for some reason tval=0
+    (f,p,mult) := genericCombination(h, D, homog);
+    (Q,mon,X,tval) := solveSOS (f, p, o);
     if Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
@@ -551,7 +551,12 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     S := kk(monoid[gens ring h#0]);
     a = sub(a,S);
     h = for hi in h list sub(hi,S);
-    mult := flatten entries (sumSOS a // gens ideal(h));
+    -- get multipliers
+    T := kk(monoid[gens ring f]);
+    dic := for i to #p-1 list sub(p#i,T) => tval#i;
+    mult = for m in mult list sub(sub(sub(m,T),dic),S);
+    -- another way (using gb)
+    -- mult = flatten entries (sumSOS a // gens ideal(h));
     return (a,mult);
     )
 
@@ -632,7 +637,7 @@ lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
     if all(h|{f}, isHomogeneous) then
         error "problem is homogeneous";
     R := ring f;
-    (H,p) := genericCombination(h, D, false);
+    (H,p,mult) := genericCombination(h, D, false);
     S := ring H;
     f = sub(f,S);
     (bound,sol) := lowerBound(f+H, p, o);
