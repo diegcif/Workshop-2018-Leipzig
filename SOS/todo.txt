@@ -6,10 +6,15 @@ Implement the following methods
 
 1) SOSPoly * SOSPoly
 2) SOSPoly ^ ZZ
+3) checkSolver, run all tests using a given solver and print results
+4) realZeros, find the real zeros of an ideal
 
 Improve the following methods
 
 3) net(SOSPoly)
+5) lasserreHierarchy, work modulo an ideal
+6) sospolyIdeal, work modulo an ideal
+7) lasserreHierarchy, allow inequalities
 
 #########################
 ######## TESTING ########
@@ -50,17 +55,13 @@ NOTE: All methods must be tested with inputs over QQ and over RR.
 
 Known bugs:
 
-1) sospolyIdeal: the SDP shouldn't return a zero vector of parameters
-
-2) file SOSIlir doesn't run
-
-3) This input fails:
-restart
-needsPackage ("SOS" , Configuration => { "CSDPexec" => "CSDP/csdp"})
+1) This input fails:
 R = QQ[x,y,z]
 f = z 
 h1 = x^2 + y^2 + z^2 - 1
 (m,s)= lasserreHierarchy (f, {h1}, 6, Solver=>"CSDP")
+
+2) sospolyIdeal({x+1},2) fails over QQ[x], but works over QQ[x,y]
 
 #########################
 ##### DOCUMENTATION #####
