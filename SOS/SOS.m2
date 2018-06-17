@@ -209,6 +209,9 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
+
+    if o.RndTol==infinity then
+        return (Q,changePolyField(RR,mon),X,pvec0);
     if kk=!=QQ then
         return (Q,changePolyField(kk,mon),X,pvec0);
 
@@ -650,6 +653,7 @@ solveSDP(Matrix, Matrix, Matrix) := o -> (C,A,b) -> solveSDP(C,sequence A,b,o)
 solveSDP(Matrix, Matrix, Matrix, Matrix) := o -> (C,A,b,y) -> solveSDP(C,sequence A,b,y,o)
 
 solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
+    (C,A,b) = toReal(C,A,b);
     (ok,y,X,Z) := (,,,);
     (ok,y,X,Z) = sdpNoConstraints(C,A,b);
     if ok then return (y,X,Z);
@@ -668,6 +672,8 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
 )
 
 solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
+    (C,A,b) = toReal(C,A,b);
+    y0 = promote(y0,RR);
     (ok,y,X,Z) := (,,,);
     (ok,y,X,Z) = sdpNoConstraints(C,A,b);
     if ok then return (y,X,Z);
@@ -678,8 +684,14 @@ solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
     return (y,,Z);
 )
 
+toReal = (C,A,b) -> (
+    C = promote(C,RR);
+    A = apply(A, Ai -> promote(Ai,RR));
+    b = promote(b,RR);
+    return (C,A,b);
+)
+
 sdpNoConstraints = (C,A,b) -> (
-    C = promote (C,RR);
     if #A==0 then(
         lambda := min eigenvalues(C, Hermitian=>true);
         if lambda>=0 then(
@@ -696,7 +708,6 @@ sdpNoConstraints = (C,A,b) -> (
 
 -- check trivial cases
 trivialSDP = (C,A,b) -> (
-    C = promote (C,RR);
     if #A==0 or b==0 then(
         lambda := min eigenvalues(C, Hermitian=>true);
         if lambda>=0 then(
@@ -719,7 +730,6 @@ simpleSDP = method(
 
 simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     R := RR;
-    C = promote(C,R);
     n := numRows C;
     
     -- try to find strictly feasible starting point --
@@ -741,11 +751,7 @@ simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
 
 simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
     R := RR;
-    C = promote(C,R);
-    A = apply(0..#A-1, i -> promote(A_i,R));
-    b = promote(b,R);
     n := numgens target C;                                    
-    y = promote(y,R);
 
     m := numgens target y;
     mu := 1_R;
@@ -759,7 +765,9 @@ simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
         mu = mu/theta;
         while true do (
             S := C - sum toList apply(0..m-1, i-> y_(i,0) * A_i);
-            Sinv :=  solve(S, id_(target S));
+            try Sinv := solve(S, id_(target S)) else (
+                print "slack matrix is singular, terminate";
+                return (,) );
             -- compute Hessian:
             H := map(R^m,R^m,(i,j) -> trace(Sinv*A_i*Sinv*A_j));
             if H==0 then (
@@ -828,6 +836,7 @@ solveCSDP(Matrix,Sequence,Matrix) := o -> (C,A,b) -> (
     if r == 32512 then error "csdp executable not found";
     print("Output saved on file " | fout);
     (y,X,Z) := readCSDP(fout,fout2,n,o.Verbose);
+    y = checkDualSol(C,A,y,Z,o.Verbose);
     return (y,X,Z);
 )
 
@@ -844,7 +853,7 @@ writeSDPA = (fin,C,A,b) -> (
     A = prepend(C,A);
     f := openOut fin;
     inputMatrix := l -> (
-        a := -sub(A_l,RR);
+        a := -A_l;
         pref := toString l | " 1 ";
         for i to n-1 do
             for j from i to n-1 do
@@ -892,6 +901,22 @@ readCSDP = (fout,fout2,n,Verbose) -> (
     return (y,X,Z);
 )
 
+checkDualSol = (C,A,y,Z,Verbose) -> (
+    yA := sum for i to #A-1 list y_(i,0)*A_i;
+    if norm(Z-C+yA)<1e-5 then return y;
+    if Verbose then print "updating dual solution";
+    AA := transpose matrix(RR, smat2vec \ toList A);
+    bb := transpose matrix(RR, {smat2vec(C-Z)});
+    y = solve(AA,bb,ClosestFit=>true);
+    return y;
+    )
+
+smat2vec = A -> (
+    n := numColumns A;
+    v := for i to n-1 list
+        for j from i to n-1 list A_(i,j);
+    return flatten v;
+    )
 
 --solveSDPA
 
@@ -955,18 +980,20 @@ readSDPA = (fout,n,Verbose) -> (
 checkSolveSDP = (solver) -> (
     tol := .001;
     equal := (y0,y) -> y=!=null and norm(y0-y)<tol*(1+norm(y0));
+    local C; local b; local A; local A1; local A2; local A3; 
+    local y0; local y; local X; local Z; local yopt;
     ---------------TEST0---------------
-    C := matrix{{0,2,0,0,0,0},{2,0,0,0,0,0},
+    C = matrix{{0,2,0,0,0,0},{2,0,0,0,0,0},
      {0,0,10,0,0,0},{0,0,0,10,0,0},{0,0,0,0,0,0},{0,0,0,0,0,0}};
-    A1 := matrix{{-1,0,0,0,0,0},{0,0,0,0,0,0},
+    A1 = matrix{{-1,0,0,0,0,0},{0,0,0,0,0,0},
      {0,0,1,0,0,0},{0,0,0,0,0,0},{0,0,0,0,-1,0},{0,0,0,0,0,0}};
-    A2 := matrix{{0,0,0,0,0,0},{0,-1,0,0,0,0},
+    A2 = matrix{{0,0,0,0,0,0},{0,-1,0,0,0,0},
      {0,0,0,0,0,0},{0,0,0,1,0,0},{0,0,0,0,0,0},{0,0,0,0,0,-1}};
-    A := (A1,A2);
-    y0 := matrix{{7},{9}};
-    b := matrix{{1},{1}};
-    (y,X,Z) := solveSDP(C,A,b,y0,Solver=>solver);
-    yopt := matrix{{2.},{2.}};
+    A = (A1,A2);
+    y0 = matrix{{7},{9}};
+    b = matrix{{1},{1}};
+    (y,X,Z) = solveSDP(C,A,b,y0,Solver=>solver);
+    yopt = matrix{{2.},{2.}};
     t0 := equal(yopt,y);
     ---------------TEST1---------------
     C = matrix {{2,1,-1},{1,0,0},{-1,0,5}};
@@ -996,9 +1023,20 @@ checkSolveSDP = (solver) -> (
     (y,X,Z) = solveSDP(C,A,b,Solver=>solver);
     yopt = 4.;
     t3 := equal(yopt,y);
+    ---------------TEST4---------------
+    -- zero objective function
+    C = matrix(RR, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}});
+    A1 = matrix(RR, {{1, 3/2, 3/2}, {3/2, 0, 1/2}, {3/2, 1/2, 0}});
+    A2 = matrix(RR, {{0, 1/2, 3/2}, {1/2, 0, 3/2}, {3/2, 3/2, 1}});
+    A3 = matrix(RR, {{0, 0, 1/2}, {0, -1, 0}, {1/2, 0, 0}});
+    A = (A1,A2,A3);
+    b = matrix(RR, {{0}, {0}, {0}});
+    (y,X,Z) = solveSDP(C, A, b, Solver=>solver);
+    yA := sum for i to #A-1 list y_(i,0)*A_i;
+    t4 := norm(Z-C+yA)<1e-5;
     -----------------------------------
-    test := {t0,t1,t2,t3};
-    for i to 3 do
+    test := {t0,t1,t2,t3,t4};
+    for i to 4 do
         if not test#i then print("test"|i|" failed");
     -- trivial cases
     (y,X,Z) = solveSDP (matrix{{1,0},{0,-1}},(),matrix{{}},Solver=>solver);
