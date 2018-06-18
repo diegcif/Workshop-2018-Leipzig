@@ -95,7 +95,7 @@ TEST /// --sub(SOS)1
     p1=sosPoly(pol1,coeff1)
     S=QQ[x,y,z,w]
     p4=sub(p1,S)
-    p4#ring===S
+    assert(p4#ring===S)
 ///
 
 TEST /// --sub(SOS)2
@@ -106,5 +106,9 @@ TEST /// --sub(SOS)2
     p1#ring===R
     S=RR[x,y]
     p4=sub(p1,S)
-    p4#ring===S
-///    
+    assert(p4#ring===S)
+///  
+
+
+
+
