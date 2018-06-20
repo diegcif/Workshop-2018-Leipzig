@@ -63,6 +63,11 @@ h1 = x^2 + y^2 + z^2 - 1
 
 2) sospolyIdeal({x+1},2) fails over QQ[x], but works over QQ[x,y]
 
+3) Code in bugs/lowerBoundTwoVariate.m2 cannot handle that "SDP
+failed".  Also: Why does the SDP fail?
+
+4) 
+
 #########################
 ##### DOCUMENTATION #####
 #########################
