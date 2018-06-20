@@ -1059,9 +1059,9 @@ checkSolveSDP = (solver) -> (
 -- check lasserreHierarchy
 checkLasserreHierarchy = solver -> (
     tol := 0.001;
-    local x;
-    local y;
-    local z;
+    local x; x= symbol x;
+    local y; y= symbol y;
+    local z; z= symbol z;
     --- Test 0
     R := QQ[x,y,z];
     f := -z;
