@@ -119,9 +119,11 @@ kindasamering = (R,S) -> (
     true)
 
 SOSPoly == SOSPoly := (S, S') -> (
-    if not kindasamering (ring S, ring S') then return false;
-    if sumSOS S != sumSOS sub (S', ring S) then return false;
-    true)
+    --if not kindasamering (ring S, ring S') then return false;
+    if ring S=!=ring S' then
+        error "Cannot compare elements of different rings. Try to use 'sub'.";
+    return sumSOS S == sumSOS (S');
+    )
 
 sumSOS = method()
 
@@ -1108,6 +1110,7 @@ checkSosInIdeal = solver -> (
     sosInIdeal ({x+1},2, Solver=>solver);
     -- Question: Should we only check that the result is
     -- mathematically correct, or must it return x^2 + 1?
+    -- Diego: I think mathematically correct is fine
     t0 := true;
 
     -- more tests to come
