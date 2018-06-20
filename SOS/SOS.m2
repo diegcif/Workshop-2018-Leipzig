@@ -111,9 +111,16 @@ SOSPoly + SOSPoly := (S,S') -> (
     return sosPoly(R,S#gens|S'#gens, S#coefficients|S'#coefficients);
     )
 
+-- Not sure what is the best way to compare polynomial rings, let's
+-- try this for now:
+kindasamering = (R,S) -> (
+    if coefficientRing R =!= coefficientRing S then return false;
+    if toExternalString monoid R != toExternalString monoid S then return false;
+    true)
+
 SOSPoly == SOSPoly := (S, S') -> (
-    if S#ring != S'#ring then return false
-    if sumSOS S != sumSOS S' then return false
+    if not kindasamering (ring S, ring S') then return false;
+    if sumSOS S != sumSOS sub (S', ring S) then return false;
     true)
 
 sumSOS = method()
@@ -547,6 +554,10 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     -- h is a list of polynomials
     -- D is a degree bound
     -- returns sos polynomial in <h>
+
+    -- The output consists of an SOSPoly and the multipliers that
+    -- express the SOS in terms of the generators.
+
     if odd D then error "D must be even";
     homog := all(h, isHomogeneous);
     (f,p,mult) := genericCombination(h, D, homog);
@@ -573,7 +584,8 @@ sosdecTernary = method(
      Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
 sosdecTernary(RingElement) := o -> (f) -> (
     -- Implements Hilbert's algorithm to write a non-negative ternary
-    -- form as sos.
+    -- form as sos of rational functions.
+    -- Returns two lists of SOSPolys, the numerator and the denomenator polys
     if numgens ring f =!= 3 then error "polynomial must involve 3 variables";
     if not isHomogeneous f then error "polynomial must be homogeneous";
     fi := f;
@@ -592,7 +604,7 @@ sosdecTernary(RingElement) := o -> (f) -> (
     S = append(S,Si);
     nums := for i to #S-1 list if odd i then continue else S#i;
     dens := for i to #S-1 list if even i then continue else S#i;
-    return (nums,dens);
+    return (nums, dens);
     )
 
 --###################################
@@ -1077,7 +1089,7 @@ checkSosdecTernary = solver -> (
     f1 := x^2 + y^2 +z^2;
     s := new SOSPoly from  {coefficients => {1,1,1},
 	    generators => {x,y,z}, ring =>R};
-    t0 := assert (s == sosdecTernary (f1, Solver=>solver));
+    t0 := (s == product (sosdecTernary (f1, Solver=>solver))#0);
 
     results := {t0};
     informAboutTests (results);
