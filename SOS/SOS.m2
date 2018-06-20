@@ -410,24 +410,24 @@ choosemonp = {Verbose=>false} >> o -> (f,p) -> (
          (ring f)_(genpos#j)^(numerator i#j)
          )));
      verbose("#points inside Newton polytope: " | #lmSOS, o);
-     
+
      return (lmf,lmSOS);
      )
 
-project2linspace = (A,b,x0) -> (     
+project2linspace = (A,b,x0) -> (
      -- cast into QQ (necessary class to compute inverse)
      A2 := promote (A,QQ);
      -- ugly hack to convert b into a matrix if it is a scalar in QQ/ZZ:
      b2 := promote (matrix{{b}},QQ);
      x02 := promote (x0,QQ);
-          
-     -- compute projection: 
+
+     -- compute projection:
      xp := x02 - transpose(A2)*((A2*x02-b2)//(A2*transpose(A2)))
      )
-     
+
 roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      ndim := numRows Q;
-     
+
      verbose("Rounding precision: " | d, o);
      Q0 := matrix pack (apply(flatten entries Q, i -> round(i*2^d)/2^d),ndim);
      x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
@@ -443,37 +443,37 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
 
 LDLdecomposition = (A) -> (
      kk := ring A;
-     if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then 
+     if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then
         error "field must be QQ or RR";
      if transpose A != A then error("Matrix must be symmetric.");
-      
+
      n := numRows A;
      Ah := new MutableHashTable; map (kk^n,kk^n,(i,j)->Ah#(i,j) = A_(i,j));
      v := new MutableList from toList apply(0..n-1,i->0_kk);
      d := new MutableList from toList apply(0..n-1,i->0_kk);
      piv := new MutableList from toList(0..n-1);
      err := 0;
-     
+
      for k from 0 to n-1 do (
       q := maxPosition apply(k..n-1, i->Ah#(i,i)); q = q + k;
       -- Symmetric Matrix Permutation:
       tmp := piv#q; piv#q = piv#k; piv#k = tmp;
       scan(0..n-1, i-> (tmp := Ah#(i,q); Ah#(i,q) = Ah#(i,k); Ah#(i,k) = tmp;));
       scan(0..n-1, i-> (tmp := Ah#(q,i); Ah#(q,i) = Ah#(k,i); Ah#(k,i) = tmp;));
-           
+
       --  positive semidefinite?
       if Ah#(k,k) < 0 then (err = k+1; break;);
       if (Ah#(k,k)==0) and (number(apply(0..n-1,i->Ah#(i,k)),f->f!=0)!=0) then (
            err = k+1; break;);
-      
+
       -- Perform LDL factorization step:
       if Ah#(k,k) > 0 then (
-                 scan(0..k-1, i -> v#i = Ah#(k,i)*Ah#(i,i));      
+                 scan(0..k-1, i -> v#i = Ah#(k,i)*Ah#(i,i));
            Ah#(k,k) = Ah#(k,k) - sum apply(toList(0..k-1), i -> Ah#(k,i)*v#i);
            if Ah#(k,k) < 0 then (err = k+1; break;);
            if Ah#(k,k) > 0 then (
             scan(k+1..n-1, i ->
-             (Ah#(i,k) = (Ah#(i,k)-sum apply(toList(0..k-1),j->Ah#(i,j)*v#j)) 
+             (Ah#(i,k) = (Ah#(i,k)-sum apply(toList(0..k-1),j->Ah#(i,j)*v#j))
              / Ah#(k,k);))
                    );
       );
@@ -482,16 +482,16 @@ LDLdecomposition = (A) -> (
      A = map(kk^n,kk^n,(i,j)-> if i>j then Ah#(i,j) else if i==j then 1_kk else 0_kk);
      D := map(kk^n,kk^n,(i,j)->if i==j then Ah#(i,j) else 0_kk);
      P := submatrix(id_(kk^n),toList piv);
-     (A,D,P,err)     
+     (A,D,P,err)
 )
 
 blkDiag = args -> (
      args = sequence args;
      if #args<2 then error ("expected at least 2 input arguments.");
-     
+
      r := ring args#0;
      B := args#0;
-     
+
      for i from 2 to #args do (
       n1 := numgens source B;
            m1 := numgens source B;
@@ -545,6 +545,7 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     homog := all(h, isHomogeneous);
     (f,p,mult) := genericCombination(h, D, homog);
     (Q,mon,X,tval) := solveSOS (f, p, o);
+    1/0;
     if Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
@@ -608,7 +609,7 @@ lowerBound = method(
 
 lowerBound(RingElement,List) := o -> (f,pars) -> (
     -- sos lower bound for the polynomial f
-    o' := new OptionTable from 
+    o' := new OptionTable from
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     R := ring f;
     tvar := local t;
@@ -705,10 +706,10 @@ sdpNoConstraints = (C,A,b) -> (
         if lambda>=0 then(
             print "SDP solved";
             y0 := map(RR^#A,RR^1,i->0);
-            return (true, y0, 0*C, C); 
+            return (true, y0, 0*C, C);
         )else(
             print "dual infeasible";
-            return (true,,,); 
+            return (true,,,);
             );
         );
     return (false,,,);
@@ -721,10 +722,10 @@ trivialSDP = (C,A,b) -> (
         if lambda>=0 then(
             print "SDP solved";
             y0 := map(RR^#A,RR^1,i->0);
-            return (true, y0, 0*C, C); 
+            return (true, y0, 0*C, C);
         )else if #A==0 then(
             print "dual infeasible";
-            return (true,,,); 
+            return (true,,,);
             );
         );
     return (false,,,);
@@ -739,19 +740,19 @@ simpleSDP = method(
 simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     R := RR;
     n := numRows C;
-    
+
     -- try to find strictly feasible starting point --
     (y,Z) := (,);
     lambda := min eigenvalues (C, Hermitian=>true);
-    if lambda > 0 then 
+    if lambda > 0 then
         y = map(R^#A,R^1,(i,j)-> 0)
     else(
-        verbose("Computing strictly feasible solution...", o); 
+        verbose("Computing strictly feasible solution...", o);
         y =  map(R^#A,R^1,i->0) || matrix{{lambda*1.1}};
         obj :=  map(R^#A,R^1,i->0) || matrix{{-1_R}};
         (y,Z) = simpleSDP(C,append(A,id_(R^n)), obj, y, UntilObjNegative=>true, Verbose=>o.Verbose);
         if y===null then return (,);
-        y = transpose matrix {take (flatten entries y,numRows y - 1)};   
+        y = transpose matrix {take (flatten entries y,numRows y - 1)};
         );
     verbose("Computing an optimal solution...", o);
     return simpleSDP(C, A, b, y, o);
@@ -759,7 +760,7 @@ simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
 
 simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
     R := RR;
-    n := numgens target C;                                    
+    n := numgens target C;
 
     m := numgens target y;
     mu := 1_R;
@@ -767,7 +768,7 @@ simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
     iter := 1;
     NewtonIterMAX := 40;
 
-    verbose("#It:       b'y      dy'Hdy   mu   alpha", o);        
+    verbose("#It:       b'y      dy'Hdy   mu   alpha", o);
 
     while mu > 0.000001 do (
         mu = mu/theta;
