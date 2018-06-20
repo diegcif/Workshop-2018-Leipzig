@@ -37,8 +37,8 @@ export {
     "checkSolveSDP",
     "genericCombination",
     "cleanSOS",
-    "sospolyIdeal",
-    "checkSosPolyIdeal",
+    "sosInIdeal",
+    "checkSosInIdeal",
     "lowerBound",
     "checkLowerBound",
     "lasserreHierarchy",
@@ -548,9 +548,9 @@ genericCombination = (h, D, homog) -> (
     return (F,flatten pvars,g);
     )
 
-sospolyIdeal = method(
+sosInIdeal = method(
      Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
-sospolyIdeal(List,ZZ) := o -> (h,D) -> (
+sosInIdeal(List,ZZ) := o -> (h,D) -> (
     -- h is a list of polynomials
     -- D is a degree bound
     -- returns sos polynomial in <h>
@@ -592,7 +592,7 @@ sosdecTernary(RingElement) := o -> (f) -> (
     S := {};
     di := first degree fi;
     while di > 4 do(
-        (Si,mult) := sospolyIdeal({fi},2*di-4,o);
+        (Si,mult) := sosInIdeal({fi},2*di-4,o);
         if Si===null then return;
         fi = mult#0;
         di = first degree fi;
@@ -1097,15 +1097,15 @@ checkSosdecTernary = solver -> (
     )
 
 
--- check sospolyIdeal
-checkSospolyIdeal = solver -> (
+-- check sosInIdeal
+checkSosInIdeal = solver -> (
     local x; x= symbol x;
     local y; y= symbol y;
     local z; z= symbol z;
 
     -- Test 0
     R:= QQ[x];
-    sospolyIdeal ({x+1},2, Solver=>solver);
+    sosInIdeal ({x+1},2, Solver=>solver);
     -- Question: Should we only check that the result is
     -- mathematically correct, or must it return x^2 + 1?
     t0 := true;

@@ -443,13 +443,13 @@ doc /// --sosdecTernary
         This implementation only works with the solver CSDP.
 ///
 
-doc /// --sospolyIdeal
+doc /// --sosInIdeal
     Key
-        sospolyIdeal
+        sosInIdeal
     Headline
        Sum of squares polynomial in ideal
     Usage
-        p = sospolyIdeal(f,d,Solver=>"CSDP")
+        p = sosInIdeal(f,d,Solver=>"CSDP")
     Inputs
         f:List
           a list of polynomials
@@ -571,7 +571,7 @@ document { --Solver
         Solver,
         [solveSDP,Solver],
         [solveSOS,Solver],
-        [sospolyIdeal,Solver],
+        [sosInIdeal,Solver],
         [sosdecTernary,Solver],
         [lowerBound,Solver]
         },
