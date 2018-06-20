@@ -29,6 +29,7 @@ export {
     "solveSOS",
     "sosdec",
     "sosdecTernary",
+    "checkSosdecTernary",
     "sumSOS",
     "blkDiag",
     "LDLdecomposition",
@@ -109,6 +110,11 @@ SOSPoly + SOSPoly := (S,S') -> (
     if R =!= ring S' then error "different rings";
     return sosPoly(R,S#gens|S'#gens, S#coefficients|S'#coefficients);
     )
+
+SOSPoly == SOSPoly := (S, S') -> (
+    if S#ring != S'#ring then return false
+    if sumSOS S != sumSOS S' then return false
+    true)
 
 sumSOS = method()
 
@@ -545,7 +551,6 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
     homog := all(h, isHomogeneous);
     (f,p,mult) := genericCombination(h, D, homog);
     (Q,mon,X,tval) := solveSOS (f, p, o);
-    1/0;
     if Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
@@ -567,6 +572,8 @@ sospolyIdeal(List,ZZ) := o -> (h,D) -> (
 sosdecTernary = method(
      Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
 sosdecTernary(RingElement) := o -> (f) -> (
+    -- Implements Hilbert's algorithm to write a non-negative ternary
+    -- form as sos.
     if numgens ring f =!= 3 then error "polynomial must involve 3 variables";
     if not isHomogeneous f then error "polynomial must be homogeneous";
     fi := f;
@@ -1058,6 +1065,24 @@ checkSolveSDP = (solver) -> (
     assert(y==0);
     return test;
 )
+
+-- check sosdecTernary
+checkSosdecTernary = solver -> (
+    local x; x= symbol x;
+    local y; y= symbol y;
+    local z; z= symbol z;
+
+    R:= QQ[x,y,z];
+
+    f1 := x^2 + y^2 +z^2;
+    s := new SOSPoly from  {coefficients => {1,1,1},
+	    generators => {x,y,z}, ring =>R};
+    t0 := assert (s == sosdecTernary (f1, Solver=>solver));
+
+    results := {t0};
+    informAboutTests (results);
+    return results
+    )
 
 
 -- check sospolyIdeal
