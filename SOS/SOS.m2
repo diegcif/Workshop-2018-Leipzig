@@ -37,6 +37,7 @@ export {
     "genericCombination",
     "cleanSOS",
     "sospolyIdeal",
+    "checkSosPolyIdeal",
     "lowerBound",
     "checkLowerBound",
     "lasserreHierarchy",
@@ -1058,6 +1059,26 @@ checkSolveSDP = (solver) -> (
 )
 
 
+-- check sospolyIdeal
+checkSospolyIdeal = solver -> (
+    local x; x= symbol x;
+    local y; y= symbol y;
+    local z; z= symbol z;
+
+    -- Test 0
+    R:= QQ[x];
+    sospolyIdeal ({x+1},2, Solver=>solver);
+    -- Question: Should we only check that the result is
+    -- mathematically correct, or must it return x^2 + 1?
+    t0 := true;
+
+    -- more tests to come
+
+    results := {t0};
+    informAboutTests (results);
+    return results
+    )
+
 
 -- check lowerBound
 checkLowerBound = solver -> (
@@ -1072,15 +1093,15 @@ checkLowerBound = solver -> (
     t0 := (abs (8-bound) < tol);
 
     -- Test 1
-    R := QQ[x,y];
-    f := (x-y)^2 + x^2 + (y-4)^2;
-    (bound, sol) := lowerBound(f, Solver=>solver);
+    R = QQ[x,y];
+    f = (x-y)^2 + x^2 + (y-4)^2;
+    (bound, sol) = lowerBound(f, Solver=>solver);
     t1 := (abs (16/3-bound) < tol);
 
     -- Test 2
-    R := RR[x,y];
-    f := (x-pi*y)^2 + x^2 + (y-4)^2;
-    (bound, sol) := lowerBound(f, Solver=>solver);
+    R = RR[x,y];
+    f = (x-pi*y)^2 + x^2 + (y-4)^2;
+    (bound, sol) = lowerBound(f, Solver=>solver);
     t2 := (abs (16*pi^2/(2+pi^2)-bound) < tol);
 
     results := {t0,t1,t2};
