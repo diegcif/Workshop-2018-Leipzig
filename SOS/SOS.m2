@@ -111,6 +111,15 @@ SOSPoly + SOSPoly := (S,S') -> (
     return sosPoly(R,S#gens|S'#gens, S#coefficients|S'#coefficients);
     )
 
+SOSPoly * SOSPoly := (g1,g2)-> (
+    if g1#ring =!= g2#ring then error "different rings";
+    q1:=for i in g1#gens list(
+        for j in g2#gens list i*j);
+    q2:=for i in g1#coefficients list(
+        for j in g2#coefficients list i*j);
+    return sosPoly(g1#ring, flatten(q1),flatten(q2));
+    )
+
 -- Not sure what is the best way to compare polynomial rings, let's
 -- try this for now:
 kindasamering = (R,S) -> (
