@@ -198,6 +198,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         S := changeRingField(QQ,ring f);
         f = toRing_S f;
         p = toRing_S \ p;
+        objFcn = toRing_S objFcn;
         );
          
     -- build SOS model --     
@@ -573,7 +574,7 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
     homog := all(h, isHomogeneous);
     (f,p,mult) := genericCombination(h, D, homog);
     (Q,mon,X,tval) := solveSOS (f, p, o);
-    if Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
+    if Q===null or Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
 	);
@@ -941,6 +942,7 @@ readCSDP = (fout,fout2,n,Verbose) -> (
 )
 
 checkDualSol = (C,A,y,Z,Verbose) -> (
+    if y===null then return;
     yA := sum for i to #A-1 list y_(i,0)*A_i;
     if norm(Z-C+yA)<1e-5 then return y;
     if Verbose then print "updating dual solution";
