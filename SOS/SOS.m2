@@ -651,6 +651,8 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
     if Q===null then return (,);
     bound := first tval;
     x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
+    if x#0<0 then x = -x;
+    mon = sub(mon,R);
     sol := if x===null then {}
         else for i to numRows mon-1 list (
             y := mon_(i,0);
@@ -707,7 +709,7 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     else if o.Solver == "SDPA" then
         (y,X,Z) = solveSDPA(C,A,b,Verbose=>o.Verbose)
     else
-        error "unknown algorithm";
+        error "unknown SDP solver";
     return (y,X,Z);
 )
 
