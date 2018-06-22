@@ -270,13 +270,20 @@ toRing = (S,f) -> (
     -- QQ => RR
     if kk===QQ then return phi(f);
     -- RR => QQ
-    liftmon := (x) -> S_(first exponents x);
     (mon,coef) := coefficients f;
-    mon = matrix {liftmon \ flatten entries mon};
+    mon = matrix {liftMonomial_S \ flatten entries mon};
     K := 2^32;
     coef = matrix(QQ, {for c in flatten entries coef list round(K*sub(c,RR))/K});
     f' := (mon*transpose coef)_(0,0);
     return f';
+    )
+
+liftMonomial = (S,f) -> (
+    -- maps monomial f to ring S
+    n := numgens S;
+    e := first exponents f;
+    e = e_(toList(0..n-1)); -- ignore some variables
+    return S_e;
     )
 
 roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndTol) -> (
@@ -640,6 +647,14 @@ lowerBound = method(
 
 lowerBound(RingElement,List) := o -> (f,pars) -> (
     -- sos lower bound for the polynomial f
+    getSolution := (x,mon) -> (
+        if x===null then return {};
+        if x#0<0 then x = -x;
+        for i to numRows mon-1 list (
+                y := mon_(i,0);
+                if first degree y!=1 then continue;
+                y => x_i )
+        );
     o' := new OptionTable from
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     R := ring f;
@@ -651,13 +666,8 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
     if Q===null then return (,);
     bound := first tval;
     x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
-    if x#0<0 then x = -x;
-    mon = sub(mon,R);
-    sol := if x===null then {}
-        else for i to numRows mon-1 list (
-            y := mon_(i,0);
-            if first degree y!=1 then continue;
-            y => x_i );
+    mon = matrix(R, applyTable(entries mon, liftMonomial_R));
+    sol := getSolution(x,mon);
     return (bound, sol);
     )
 lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},o)
@@ -1171,10 +1181,10 @@ checkLasserreHierarchy = solver -> (
     local z; z= symbol z;
     --- Test 0
     R := QQ[x,y,z];
-    f := -z;
+    f := z;
     h1 := x^2 + y^2 + z^2 - 1;
     (minb, sol) := lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t0 := (abs(1-minb) < tol);
+    t0 := (abs(-1-minb) < tol);
 
     --- Test 1
     R = QQ[x,y];
