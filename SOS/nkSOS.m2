@@ -39,8 +39,9 @@ sospolyPower(SOSPoly,ZZ) := (p1,D)->(
     if D==2 then return sosPoly({sumSOS(p1)},{1});
     if D<=0 then error "power should be a positive integer.";
     if odd D then error "power should be an even integer.";
-    sqpol1=sumSOS(p1);
-    p2=sqpol1^(D-2);
+    d=D//2; 
+    sq=sumSOS(p1);
+    p2=(sq)^d;
     return sosPoly({p2},{1});
     )
 sospolyPower(g1,4)
@@ -108,6 +109,99 @@ TEST /// --sub(SOS)2
     p4=sub(p1,S)
     assert(p4#ring===S)
 ///  
+
+TEST /// --sospoly and sum of squares
+    R = QQ[x,y,z]
+    coeff1={3,1,1,1/4,1}
+    pol1={-(1/2)*x^3*y-(1/2)*x*y^3+x*y*z^2, x^2*y^2-z^4, x^2*y*z-y*z^3,
+      -x^3*y+x*y^3, x*y^2*z-x*z^3}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=x^6*y^2 + 2*x^4*y^4 + x^2*y^6 - 2*x^4*y^2*z^2 - 2*x^2*y^4*z^2 - 
+    3*x^2*y^2*z^4 + x^2*z^6 + y^2*z^6 + z^8
+    assert(sumSOS(p1)===p2)
+///
+
+TEST /// --sospoly and sum of squares
+    R = QQ[x,y,z]
+    coeff1={1,1,1,3/4,1}
+    pol1={x^4-(1/2)*x^2*y^2-(1/2)*y^4-(1/2)*x^2*z^2+y^2*z^2-(1/2)*z^4,
+       x^3*y-x*y^3, x^3*z-x*z^3, x^2*y^2-y^4-x^2*z^2+z^4, y^3*z-y*z^3}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=x^8 - 2*x^4*y^4 + y^8 + x^4*y^2*z^2 + x^2*y^4*z^2 - 2*x^4*z^4 + x^2*y^2*z^4 - 
+    2*y^4*z^4 + z^8
+    assert(sumSOS(p1)===p2)
+///
+
+TEST /// --sospolypower
+    R = QQ[x,y,z]
+    coeff1={1,1,1,3/4,1}
+    pol1={x^4-(1/2)*x^2*y^2-(1/2)*y^4-(1/2)*x^2*z^2+y^2*z^2-(1/2)*z^4,
+       x^3*y-x*y^3, x^3*z-x*z^3, x^2*y^2-y^4-x^2*z^2+z^4, y^3*z-y*z^3}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=sospolyPower(p1,2)
+    q1=sumSOS(p1)
+    q2=sumSOS(p2)
+    assert(q2==q1^2)
+///
+
+TEST /// --sospolypower
+    R = QQ[x,y,z]
+    coeff1={1,1,1,3/4,1}
+    pol1={x^4-(1/2)*x^2*y^2-(1/2)*y^4-(1/2)*x^2*z^2+y^2*z^2-(1/2)*z^4,
+       x^3*y-x*y^3, x^3*z-x*z^3, x^2*y^2-y^4-x^2*z^2+z^4, y^3*z-y*z^3}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=sospolyPower(p1,6)
+    q1=sumSOS(p1)
+    q2=sumSOS(p2)
+    assert(q2==q1^6)
+///
+
+TEST /// --sospolypower
+    R = QQ[x,y,z]
+    coeff1={3,1,1,1/4,1}
+    pol1={-(1/2)*x^3*y-(1/2)*x*y^3+x*y*z^2, x^2*y^2-z^4, x^2*y*z-y*z^3,
+      -x^3*y+x*y^3, x*y^2*z-x*z^3}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=sospolyPower(p1,8)
+    q1=sumSOS(p1)
+    q2=sumSOS(p2)
+    assert(q2==q1^8)
+///
+
+TEST /// --cleanSOS
+    R = QQ[x,y,z]
+    coeff1={1/2,0,0,4,6,8}
+    pol1={x^2,y^2,x*z,x*y,z^3,y^2*z}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=cleanSOS(p1,0)
+    q1=sumSOS(p1)
+    q2=sumSOS(p2)
+    assert(q2==q1)
+///
+
+TEST /// --toRing
+    R=RR[x,y,z]
+    f=x^2+2.21*x*y-4*y*z
+    S=QQ[x,y,z]
+    f'=toRing(S,f)
+    t =toRing(R,f')
+    assert(norm(f-t)<1e-10)
+    assert(class f'===S)
+///
+
+
+TEST /// --toRing
+    R=QQ[x,y,z]
+    f=x^2+2/9*x*y-4/21*y*z
+    S=RR[x,y,z]
+    f'=toRing(S,f)
+    t =toRing(R,f')
+    (mon,coeff)=coefficients(f-t)
+    t1=flatten entries coeff
+    t2=sum(for i in t1 list i^2)
+    assert(1/10^(18)-t2>0)
+    assert(class f'===S)
+///
 
 
 
