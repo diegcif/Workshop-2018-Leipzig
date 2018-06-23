@@ -163,7 +163,7 @@ verbose = (s,o) -> if o.Verbose then print s
 
 sosdec = (Q,mon) -> (
     if mon===null or Q===null then return (,);
-    (L,D,P,err) := LDLdecomposition(Q);
+    (L,D,P,err) := PSDdecomposition(Q);
     if err != 0 then error ("Gram Matrix is not positive semidefinite");
     n := numRows Q;
     g := toList flatten entries (transpose mon * transpose inverse P * L);
@@ -468,11 +468,26 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      Q = map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then xp_(LinSpaceIndex#{i+1,j+1},0) 
            else xp_(LinSpaceIndex#{j+1,i+1},0));
 
-     t = timing((L,D,P,Qpsd) := LDLdecomposition(Q););
+     t = timing((L,D,P,Qpsd) := PSDdecomposition(Q););
      verbose("Time needed for LDL decomposition: " | net t#0, o);
      if Qpsd == 0 then (true, Q) else (false,Q)
      )
 
+PSDdecomposition = (A) -> (
+    kk := ring A;
+    if kk===QQ then
+        return LDLdecomposition(A);
+    if kk=!=RR and not instance(kk,RealField) then
+        error "field must be QQ or RR";
+    tol := 1e-9;
+    (e,V) := eigenvectors(A,Hermitian=>true);
+    err := if all(e, i -> i > -tol) then 0 else 1;
+    e = apply(e, i -> max(i,0));
+    D := diagonalMatrix e;
+    P := id_(kk^(numRows A));
+    return (V,D,P,err);
+    )
+    
 LDLdecomposition = (A) -> (
      kk := ring A;
      if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then

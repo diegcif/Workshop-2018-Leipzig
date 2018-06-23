@@ -309,8 +309,6 @@ doc /// --LDLdecomposition
           lower triangular
         D:Matrix
           diagonal
-        L:Matrix
-          lower triangular
         P:Matrix
           permutation matrix
         err:ZZ
@@ -318,7 +316,7 @@ doc /// --LDLdecomposition
     Consequences
     Description
       Text
-        Given a positive semidefinite matrix $A$, this method returns a lower triangular matrix $L$ with ones in the diagonal, a diagonal matrix $D$ and a permutation matrix $P$ such that $L' D L = P' A P.$
+        Given a positive semidefinite matrix $A$, this method returns a lower triangular matrix $L$ with ones in the diagonal, a diagonal matrix $D$ and a permutation matrix $P$ such that $L D L' = P' A P.$
       Example
         A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
         (L,D,P,err) = LDLdecomposition(A)
