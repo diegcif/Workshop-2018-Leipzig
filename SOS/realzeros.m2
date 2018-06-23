@@ -43,7 +43,7 @@ realZeros(List,ZZ) := o -> (h,d) -> (
         R = changeRingField(RR,R);
         h = toRing_R \ h; 
         );
-    (s,mult) := sosInIdeal(h,d);
+    (s,mult) := sosInIdeal(h,d,RndTol=>o.RndTol,Solver=>o.Solver,Verbose=>o.Verbose);
     if s===null then
         error "SOS polynomial not found. Try increasing the degree.";
     s' := cleanSOS(s,o.CleanTol);
