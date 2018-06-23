@@ -586,8 +586,10 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
         return (null,null);
 	);
     a := sosdec(Q,mon);
+    S := ring h#0;
     kk := ring Q;
-    S := kk(monoid[gens ring h#0]);
+    if kk =!= coefficientRing S then
+        S = kk(monoid[gens ring h#0]);
     a = sub(a,S);
     h = for hi in h list sub(hi,S);
     -- get multipliers
