@@ -43,12 +43,13 @@ export {
     "checkLowerBound",
     "lasserreHierarchy",
     "checkLasserreHierarchy",
+    "roundPSDmatrix",
 --debugging
     "createSOSModel",
     "choosemonp",
     "project2linspace",
-    "roundPSDmatrix",
     "toRing",
+    "changeRingField",
 --Method options
     "RndTol",
     "UntilObjNegative",
