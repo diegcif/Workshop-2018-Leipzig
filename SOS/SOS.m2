@@ -108,12 +108,12 @@ Number * SOSPoly := (a,S) -> (
 
 SOSPoly + SOSPoly := (S,S') -> (
     R := ring S;
-    if R =!= ring S' then error "different rings";
+    if R =!= ring S' then error "cannot add elements of different rings";
     return sosPoly(R,S#gens|S'#gens, S#coefficients|S'#coefficients);
     )
 
 SOSPoly * SOSPoly := (g1,g2)-> (
-    if g1#ring =!= g2#ring then error "different rings";
+    if g1#ring =!= g2#ring then error "cannot multiply elements of different rings";
     q1:=for i in g1#gens list(
         for j in g2#gens list i*j);
     q2:=for i in g1#coefficients list(
@@ -128,12 +128,16 @@ kindasamering = (R,S) -> (
     if toExternalString monoid R != toExternalString monoid S then return false;
     true)
 
-SOSPoly == SOSPoly := (S, S') -> (
+SOSPoly == RingElement := (S, f) -> (
     --if not kindasamering (ring S, ring S') then return false;
-    if ring S=!=ring S' then
+    if ring S=!=ring f then
         error "Cannot compare elements of different rings. Try to use 'sub'.";
-    return sumSOS S == sumSOS (S');
+    return sumSOS S == f;
     )
+
+RingElement == SOSPoly := (f, S) -> S == f
+
+SOSPoly == SOSPoly := (S, S') -> S == sumSOS S'
 
 sumSOS = method()
 
@@ -1202,14 +1206,14 @@ checkLasserreHierarchy = solver -> (
     f := z;
     h1 := x^2 + y^2 + z^2 - 1;
     (minb, sol) := lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t0 := (abs(-1-minb) < tol);
+    t0 := minb=!=null and (abs(-1-minb) < tol);
 
     --- Test 1
     R = QQ[x,y];
     f = -y;
     h1 = y-x^2;
     (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t1 := (abs(minb) < tol);
+    t1 := minb=!=null and (abs(minb) < tol);
     
     results := {t0,t1};
     informAboutTests (results);

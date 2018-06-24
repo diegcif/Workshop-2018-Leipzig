@@ -5,14 +5,13 @@ sortBy = (L, fun) ->
     last \ sort for l in L list (fun l, l);
 
 zeroSolve = f -> (
-    maxEntry := v -> max \\ abs \ flatten entries v;
     G := squareUp polySystem f;
     sol := solveSystem G;
     pts := for p in sol list
         if not isRealPoint p then continue
         else new Point from {Coordinates => realPart\coordinates p};
     F := matrix {f};
-    for p in pts do p.Residual = maxEntry evaluate(F,p);
+    for p in pts do p.Residual = norm( infinity, evaluate(F,p) );
     pts = sortBy(pts, p -> p.Residual);
     return pts;
     )
