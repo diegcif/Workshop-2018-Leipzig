@@ -203,7 +203,7 @@ TEST /// --toRing
     assert(class f'===S)
 ///
 
-TEST /// --toRing
+TEST /// --roundPSDmatrix
     Q=matrix{{2.01,0,0},{0,1.1,0},{0,0,2}}
     A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0}}
     b=matrix{{2},{1},{2}}
