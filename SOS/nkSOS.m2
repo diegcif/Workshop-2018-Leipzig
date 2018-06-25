@@ -211,5 +211,52 @@ TEST /// --roundPSDmatrix
     Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},5=>{3,1},4=>{3,2},2=>{3,3}}
     LinIndex =applyPairs(Gramind,(i,j)->(j,i))
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
-    assert(boolv==true)
+    e=eigenvalues Qpsd
+    boolv2=if all(e, i -> i > 0) then 0 else 1
+    assert((boolv,boolv2)==(true,0))
+///
+
+TEST /// --roundPSDmatrix2
+    Q=matrix{{2.01,0,1},{0,1.1,0},{1,0,2}}
+    eigenvalues Q
+    A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,0,0,1,0}}
+    b=matrix{{2},{1},{2},{1}}
+    d=10
+    Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
+    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
+    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
+    e=eigenvalues Qpsd
+    boolv2=if all(e, i -> i > 0) then 0 else 1
+    assert((boolv,boolv2)==(true,0))
+///
+
+TEST /// --blkDiag1
+    A1=matrix{{1,0},{0,2}}
+    A2=matrix{{1,1,3},{4,2,5},{2,1,1}}
+    assert(blkDiag(A1,A2)==matrix{{1,0,0,0,0},{0,2,0,0,0},{0,0,1,1,3},{0,0,4,2,5},{0,0,2,1,1}})
+///
+
+TEST /// --blkDiag2
+    A1=matrix{{1.4,0,2.5},{0,2,1.9},{1.2,3,6.1}}
+    A2=matrix{{2.6,1,0},{4.1,2.6,5},{1.5,1,1}}
+    assert(blkDiag(A1,A2)==matrix{{1.4,0,2.5,0,0,0},{0,2,1.9,0,0,0},{1.2,3,6.1,0,0,0},{0,0,0,2.6,1,0},{0,0,0,4.1,2.6,5},{0,0,0,1.5,1,1}})
+///
+
+TEST /// --sosdec
+    R=QQ[x,y,z]
+    Q=matrix{{1,0,0},{0,1,0},{0,0,1}}
+    Q=promote(Q,QQ)
+    mon=matrix{{x^2},{x*z},{y^2}}
+    f=sosdec(Q,mon)
+    assert(sumSOS f==transpose mon * Q *mon)
+///
+
+TEST /// --sosdec
+    R=QQ[x,y,z]
+    Q=matrix{{1,-1/2,1},{-1/2,1,-1/2},{1,-1/2,1}}
+    --eigenvalues Q
+    Q=promote(Q,QQ)
+    mon=matrix{{x^3},{x^2*z},{y*z^2}}
+    f=sosdec(Q,mon)
+    assert(sumSOS f==transpose mon * Q *mon)
 ///
