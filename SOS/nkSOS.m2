@@ -203,6 +203,13 @@ TEST /// --toRing
     assert(class f'===S)
 ///
 
-
-
-
+TEST /// --toRing
+    Q=matrix{{2.01,0,0},{0,1.1,0},{0,0,2}}
+    A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0}}
+    b=matrix{{2},{1},{2}}
+    d=10
+    Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},5=>{3,1},4=>{3,2},2=>{3,3}}
+    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
+    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
+    assert(boolv==true)
+///
