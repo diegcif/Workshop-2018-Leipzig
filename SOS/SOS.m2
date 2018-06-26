@@ -121,15 +121,7 @@ SOSPoly * SOSPoly := (g1,g2)-> (
     return sosPoly(g1#ring, flatten(q1),flatten(q2));
     )
 
--- Not sure what is the best way to compare polynomial rings, let's
--- try this for now:
-kindasamering = (R,S) -> (
-    if coefficientRing R =!= coefficientRing S then return false;
-    if toExternalString monoid R != toExternalString monoid S then return false;
-    true)
-
 SOSPoly == RingElement := (S, f) -> (
-    --if not kindasamering (ring S, ring S') then return false;
     if ring S=!=ring f then
         error "Cannot compare elements of different rings. Try to use 'sub'.";
     return sumSOS S == f;
