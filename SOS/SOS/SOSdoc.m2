@@ -39,6 +39,57 @@ document {
     }
 
 --###################################
+-- SOSPoly
+--###################################
+
+doc /// --SOSPoly
+    Key
+        SOSPoly
+	(ring, SOSPoly)
+	(gens, SOSPoly)
+	(coefficients, SOSPoly)
+	(length, SOSPoly)
+	(symbol +, SOSPoly, SOSPoly)
+	(symbol *, SOSPoly, SOSPoly)
+	(symbol *, Number, SOSPoly)
+	(symbol ==, SOSPoly, SOSPoly)
+    Headline
+        A type to store SOS decompositions of polynomials
+    Description
+      Text
+        This data type stores sums of squares in terms of the summands.  
+	The type is a hash table consisting of the polynomials to be 
+	squared and summed (the 'generators'), corresponding coefficients,
+	and the base ring.
+      Example
+        R = QQ[x,y];
+        s = sosPoly(R, {x+1,y}, {2,3} )
+	peek s
+      Text
+        The ingredients of a SOS can be recovered using the expected commands:
+      Example
+        gens s
+	ring s
+	coefficients s
+      Text
+        The length of an SOS is the number of summands:
+      Example
+        length s
+      Text
+        Sums of squares support many common operations with polynomials:
+      Example
+	2 * s
+        s + s
+	s * s
+	s == s
+      Text
+        The actual polynomial can be recovered using @TO sumSOS@:
+      Example
+        sumSOS s
+///
+
+
+--###################################
 -- Methods
 --###################################
 
@@ -64,7 +115,7 @@ doc /// --sumSOS
         R = QQ[x,y];
         s = sosPoly(R, {x+1,y}, {2,3} )
         sumSOS( s )
-      Code
+      Code    
       Pre
     SeeAlso
         sosdec
