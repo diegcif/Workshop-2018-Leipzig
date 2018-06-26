@@ -1144,15 +1144,35 @@ checkSosInIdeal = solver -> (
 
     -- Test 0
     R:= QQ[x];
-    sosInIdeal ({x+1},2, Solver=>solver);
-    -- Question: Should we only check that the result is
-    -- mathematically correct, or must it return x^2 + 1?
-    -- Diego: I think mathematically correct is fine
-    t0 := true;
+    I:= {x+1};
+    s := sosInIdeal (I,2, Solver=>solver);
+    -- The result is a nonzero sum of squares:
+    t01 := (#(gens s#0) > 0);
+    -- The result lies in I
+    t02 := (isSubset (ideal (sumSOS s#0), ideal I));
+    t0 := (t01 and t02);
+    
+    -- Test 1 (same as test 0 but with real input)
+    R= QQ[x];
+    I= {x+1};
+    s = sosInIdeal (I,2, Solver=>solver);
+    -- The result is a nonzero sum of squares:
+    t11 := (#(gens s#0) > 0);
+    -- It cannot be checked exactly if the result lies in I
+    -- t12 := (isSubset (ideal (sumSOS s#0), ideal I));
+    t1 := t11;
+    
+    -- Test 2:
+    R = QQ[x,y,z];
+    I = {x-y, x+z};
+    s = sosInIdeal (I,4, Solver=>solver);
+    -- The result is a nonzero sum of squares:
+    t21 := (#(gens s#0) > 0);
+    -- The result lies in I:
+    t22 := (isSubset (ideal (sumSOS s#0), ideal I));
+    t2 := (t21 and t22);
 
-    -- more tests to come
-
-    results := {t0};
+    results := {t0,t1, t2};
     informAboutTests (results);
     return results
     )
