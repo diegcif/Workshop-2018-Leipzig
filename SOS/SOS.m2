@@ -1145,7 +1145,7 @@ checkSosInIdeal = solver -> (
     -- Test 0
     R:= QQ[x];
     I:= {x+1};
-    s := sosInIdeal (I,2, Solver=>solver);
+    s := sosInIdeal (I,4, Solver=>solver);
     -- The result is a nonzero sum of squares:
     t01 := (#(gens s#0) > 0);
     -- The result lies in I
@@ -1155,7 +1155,7 @@ checkSosInIdeal = solver -> (
     -- Test 1 (same as test 0 but with real input)
     R= QQ[x];
     I= {x+1};
-    s = sosInIdeal (I,2, Solver=>solver);
+    s = sosInIdeal (I,4, Solver=>solver);
     -- The result is a nonzero sum of squares:
     t11 := (#(gens s#0) > 0);
     -- It cannot be checked exactly if the result lies in I
@@ -1165,7 +1165,7 @@ checkSosInIdeal = solver -> (
     -- Test 2:
     R = QQ[x,y,z];
     I = {x-y, x+z};
-    s = sosInIdeal (I,4, Solver=>solver);
+    s = sosInIdeal (I,6, Solver=>solver);
     -- The result is a nonzero sum of squares:
     t21 := (#(gens s#0) > 0);
     -- The result lies in I:
