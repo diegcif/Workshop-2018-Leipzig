@@ -4,17 +4,21 @@
 
 Implement the following methods
 
-1) SOSPoly * SOSPoly
-2) SOSPoly ^ ZZ
-3) checkSolver, run all tests using a given solver and print results
-4) realZeros, find the real zeros of an ideal
+1) checkSolver, run all tests using a given solver and print results
+2) realZeros, find the real zeros of an ideal
+
+Extend the following methods to quotient rings:
+
+3) createSOSModel
+4) solveSOS
+5) lasserreHierarchy
+6) sosInIdeal
 
 Improve the following methods
 
-3) net(SOSPoly)
-5) lasserreHierarchy, work modulo an ideal
-6) sosInIdeal, work modulo an ideal
-7) lasserreHierarchy, allow inequalities
+7) net(SOSPoly)
+8) solveSDP should accept many PSD blocks
+9) lasserreHierarchy, allow inequalities
 
 #########################
 ######## TESTING ########
@@ -22,19 +26,16 @@ Improve the following methods
 
 Implement tests for the following methods
 
-1) sosPoly
-2) sumSOS
-3) cleanSOS
-4) sub(SOSPoly,Ring)
-5) SOSPoly * SOSPoly
-6) SOSPoly ^ ZZ
-7) sosdec
-8) toRing
-9) roundPSDmatrix
-10) blkDiag
-11*) LDLdecomposition
-12) genericCombination
-13*) choosemonp
+1) cleanSOS
+2) sub(SOSPoly,Ring)
+3) sosdec
+4) toRing
+5) roundPSDmatrix
+6) blkDiag
+7*) LDLdecomposition
+8) genericCombination
+9*) choosemonp
+10) createSOSModel
 
 The following methods need a test that accepts the Solver as an input
 
