@@ -1141,36 +1141,26 @@ checkSosInIdeal = solver -> (
     local x; x= symbol x;
     local y; y= symbol y;
     local z; z= symbol z;
+    inIdealQQ := (s,h) -> (sumSOS(s) % ideal h) == 0;
+    inIdealRR := (s,h) -> norm(sumSOS(s) % ideal h) < 1e-8;
 
     -- Test 0
     R:= QQ[x];
-    I:= {x+1};
-    s := sosInIdeal (I,4, Solver=>solver);
-    -- The result is a nonzero sum of squares:
-    t01 := (#(gens s#0) > 0);
-    -- The result lies in I
-    t02 := (isSubset (ideal (sumSOS s#0), ideal I));
-    t0 := (t01 and t02);
+    h:= {x+1};
+    (s,mult) := sosInIdeal (h,4, Solver=>solver);
+    t0 := s=!=null and inIdealQQ(s,h);
     
     -- Test 1 (same as test 0 but with real input)
-    R= QQ[x];
-    I= {x+1};
-    s = sosInIdeal (I,4, Solver=>solver);
-    -- The result is a nonzero sum of squares:
-    t11 := (#(gens s#0) > 0);
-    -- It cannot be checked exactly if the result lies in I
-    -- t12 := (isSubset (ideal (sumSOS s#0), ideal I));
-    t1 := t11;
+    R= RR[x];
+    h= {x+1};
+    (s,mult) = sosInIdeal (h,4, Solver=>solver);
+    t1 := s=!=null and inIdealRR(s,h);
     
     -- Test 2:
     R = QQ[x,y,z];
-    I = {x-y, x+z};
-    s = sosInIdeal (I,6, Solver=>solver);
-    -- The result is a nonzero sum of squares:
-    t21 := (#(gens s#0) > 0);
-    -- The result lies in I:
-    t22 := (isSubset (ideal (sumSOS s#0), ideal I));
-    t2 := (t21 and t22);
+    h = {x-y, x+z};
+    (s,mult) = sosInIdeal (h,6, Solver=>solver);
+    t2 := s=!=null and inIdealQQ(s,h);
 
     results := {t0,t1, t2};
     informAboutTests (results);
