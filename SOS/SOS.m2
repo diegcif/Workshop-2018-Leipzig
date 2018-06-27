@@ -190,7 +190,8 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     )else if #bounds!=0 then 
         error "expected a list with two elements";
 
-    kk := coefficientRing ring f;
+    R0 := ring f;
+    kk := coefficientRing R0;
     if kk=!=QQ then (
         S := changeRingField(QQ,ring f);
         f = toRing_S f;
@@ -235,10 +236,10 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
 
+    if kk=!=QQ then
+        return (Q,sub(mon,R0),X,pvec0);
     if o.RndTol==infinity then
         return (Q,changePolyField(RR,mon),X,pvec0);
-    if kk=!=QQ then
-        return (Q,changePolyField(kk,mon),X,pvec0);
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);

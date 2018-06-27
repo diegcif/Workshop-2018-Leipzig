@@ -13,7 +13,7 @@ Improve the following methods
 
 3) net(SOSPoly)
 5) lasserreHierarchy, work modulo an ideal
-6) sospolyIdeal, work modulo an ideal
+6) sosInIdeal, work modulo an ideal
 7) lasserreHierarchy, allow inequalities
 
 #########################
@@ -41,7 +41,7 @@ The following methods need a test that accepts the Solver as an input
 14*) solveSDP
 15*) solveSOS
 16) sosdecTernary
-17) sospolyIdeal
+17) sosInIdeal
 18) lowerBound
 19) lasserreHierarchy
 
@@ -61,7 +61,9 @@ f = z
 h1 = x^2 + y^2 + z^2 - 1
 (m,s)= lasserreHierarchy (f, {h1}, 6, Solver=>"CSDP")
 
-2) sospolyIdeal({x+1},2) fails over QQ[x], but works over QQ[x,y]
+2) sosInIdeal({x+1},2) fails over QQ[x], but works over QQ[x,y]
+
+2') sosInIdeal({(x+1)^2},2) also fails
 
 3) Code in bugs/lowerBoundTwoVariate.m2 cannot handle that "SDP
 failed".  Also: Why does the SDP fail?
