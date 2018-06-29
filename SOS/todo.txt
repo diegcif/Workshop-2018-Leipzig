@@ -92,6 +92,20 @@ Methods whose documentation needs improvement
 10) lowerBound
 11) lasserreHierarchy
 
+########################################
+######### Comments and discussion ######
+########################################
+
+1) The randomness of the SDP solvers is a severe problem, for example
+for the tests.  If a routine fails 1 out of 10 times, how should it be
+tested?
+
+2) The function sosInIdeal is worthless if it can't even solve
+    R = QQ[x,y,z];
+    h = {x-y, x+z};
+    (s,mult) = sosInIdeal (h,10, Solver=>"CSDP");
+
+
 #########################
 ######### PAPER #########
 #########################

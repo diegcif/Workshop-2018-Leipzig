@@ -1143,7 +1143,7 @@ checkSosInIdeal = solver -> (
     local y; y= symbol y;
     local z; z= symbol z;
     inIdealQQ := (s,h) -> (sumSOS(s) % ideal h) == 0;
-    inIdealRR := (s,h) -> norm(sumSOS(s) % ideal h) < 1e-8;
+    inIdealRR := (s,h) -> norm(sumSOS(s) % sub(ideal h, ring s)) < 1e-8;
 
     -- Test 0
     R:= QQ[x];
@@ -1161,7 +1161,14 @@ checkSosInIdeal = solver -> (
     R = QQ[x,y,z];
     h = {x-y, x+z};
     (s,mult) = sosInIdeal (h,6, Solver=>solver);
-    t2 := s=!=null and inIdealQQ(s,h);
+    -- The result might be returned with real or rational
+    -- Depending on rounding success or failure:
+    local t2;
+    if s===null then t2 = false else 
+    if class coefficientRing ring s === RealField then 
+      t2 = inIdealRR(s,h)
+    else
+      t2 = inIdealQQ(s,h);
 
     results := {t0,t1, t2};
     informAboutTests (results);
