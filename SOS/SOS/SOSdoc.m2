@@ -49,6 +49,7 @@ doc /// --SOSPoly
 	(gens, SOSPoly)
 	(coefficients, SOSPoly)
 	(length, SOSPoly)
+	(substitute, SOSPoly, Ring)
 	(symbol +, SOSPoly, SOSPoly)
 	(symbol *, SOSPoly, SOSPoly)
 	(symbol *, Number, SOSPoly)
@@ -86,6 +87,12 @@ doc /// --SOSPoly
         The actual polynomial can be recovered using @TO sumSOS@:
       Example
         sumSOS s
+      Text
+        @TO SOSPoly@ supports the @TO substitute@ command.  This
+	cannot be used to change the coefficient field.
+      Example
+        S = QQ[x,y,z];
+	sub (s, S)
 ///
 
 

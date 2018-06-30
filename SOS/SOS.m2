@@ -92,7 +92,7 @@ coefficients SOSPoly := o -> S -> S#coefficients
 
 length SOSPoly := S -> #(S#gens)
 
-sub(SOSPoly,Ring) := (S,R) -> 
+substitute (SOSPoly,Ring) := (S,R) ->
     sosPoly(for g in S#gens list sub(g,R), S#coefficients)
 
 net SOSPoly := S -> (
@@ -1249,6 +1249,15 @@ TEST /// --cleanSOS
     s = sosPoly(R, {x+1,y}, {2,1/100000})
     t = cleanSOS( s, 0.001 )
     assert (t == s)
+///
+
+TEST ///--substitute SOSPoly
+    R = QQ[x,y];
+    s = sosPoly(R, {x+1,y}, {2,3})
+    S = QQ[x,y,z]
+    t1 = sosPoly(S, {x+1,y}, {2,3})
+    t2 = sub (s, S)
+    assert (t1 == t2)
 ///
 
 TEST /// --solveSOS (good cases)
