@@ -89,7 +89,8 @@ doc /// --SOSPoly
         sumSOS s
       Text
         @TO SOSPoly@ supports the @TO substitute@ command.  This
-	cannot be used to change the coefficient field.
+	cannot be used to change the coefficient field, use @TO toRing@ for
+	this purpuse.
       Example
         S = QQ[x,y,z];
 	sub (s, S)

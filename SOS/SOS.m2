@@ -260,7 +260,8 @@ changeRingField = (kk,R) -> kk(monoid[gens R])
 
 changePolyField = (kk,f) -> toRing(changeRingField(kk,ring f), f)
 
-toRing = (S,f) -> (
+toRing = method ()
+toRing (Ring, RingElement) = (S,f) -> (
     -- maps f to ring S
     R := ring f;
     kk := coefficientRing R;
@@ -274,6 +275,9 @@ toRing = (S,f) -> (
     coef = matrix(QQ, {for c in flatten entries coef list round(K*sub(c,RR))/K});
     f' := (mon*transpose coef)_(0,0);
     return f';
+    )
+
+toRing (Ring, SOSPoly) = (S, f) -> (
     )
 
 liftMonomial = (S,f) -> (
