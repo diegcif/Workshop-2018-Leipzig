@@ -1260,12 +1260,15 @@ TEST ///--substitute SOSPoly
     assert (t1 == t2)
 ///
 
-TEST /// --solveSOS (good cases)
+TEST /// --solveSOS and sosdec (good cases)
     R = QQ[x,y];
     f = 4*x^4+y^4;
     (Q,mon,X) = solveSOS f
     a = sosdec(Q,mon)
     assert( f == sumSOS a )
+    -- boundary cases:
+    assert( sosdec(  ,mon) === (,) )
+    assert( sosdec(Q ,   ) === (,) )
 
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
     (Q,mon,X) = solveSOS f

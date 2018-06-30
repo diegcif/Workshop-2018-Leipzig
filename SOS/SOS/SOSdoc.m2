@@ -174,8 +174,6 @@ doc /// --sosdec
           a $n\times 1$ matrix of monomials
     Outputs
         s:SOSPoly
-        tval:List
-          of parameter values
     Consequences
     Description
       Text
