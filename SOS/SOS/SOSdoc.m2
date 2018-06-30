@@ -93,6 +93,38 @@ doc /// --SOSPoly
 -- Methods
 --###################################
 
+doc /// --cleanSOS
+    Key
+        cleanSOS
+	(cleanSOS,SOSPoly,Number)
+    Headline
+        Remove terms with very small coefficients from a sum of squares.
+    Usage
+        cleanSOS (s, tol)
+    Inputs
+        s:SOSPoly
+	tol:Number
+	  the tolerance for the coefficients.
+    Outputs
+        :SOSPoly
+          a cleaned up @TO SOSPoly@
+    Consequences
+    Description
+      Text
+        Given an @TO SOSPoly@ with coefficients in the reals, 
+	this method removes terms with 
+	coefficients smaller than the given tolerance.  It does nothing 
+	on inputs with rational coefficients.
+      Example
+        R = RR[x,y];
+        s = sosPoly(R, {x+1,y}, {2,0.0001})
+        cleanSOS( s, 0.001 )
+      Code
+      Pre
+    SeeAlso
+        SOSPoly
+///
+
 doc /// --sumSOS
     Key
         sumSOS
@@ -101,7 +133,7 @@ doc /// --sumSOS
     Usage
         sumSOS(s)
     Inputs
-        g:SOSPoly
+        s:SOSPoly
     Outputs
         :RingElement
           a polynomial

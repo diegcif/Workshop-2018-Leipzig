@@ -26,7 +26,7 @@ Improve the following methods
 
 Implement tests for the following methods
 
-1) cleanSOS
+--1) cleanSOS--
 2) sub(SOSPoly,Ring)
 3) sosdec
 4) toRing
@@ -77,8 +77,8 @@ failed".  Also: Why does the SDP fail?
 
 Methods without documentation
 
-1) sosPoly
-2) cleanSOS
+--1) sosPoly--
+--2) cleanSOS--
 3) toRing
 4) sub(SOSPoly,Ring)
 5) SOSPoly * SOSPoly

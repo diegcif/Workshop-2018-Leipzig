@@ -1238,6 +1238,19 @@ beginDocumentation()
 
 load "./SOS/SOSdoc.m2"
 
+TEST /// --cleanSOS
+    R = RR[x,y];
+    s = sosPoly(R, {x+1,y}, {2,0.0001})
+    t1 = cleanSOS( s, 0.001 )
+    t2 = sosPoly(R, {x+1}, {2})
+    assert (t1 == t2)
+    
+    R = QQ[x,y];
+    s = sosPoly(R, {x+1,y}, {2,1/100000})
+    t = cleanSOS( s, 0.001 )
+    assert (t == s)
+///
+
 TEST /// --solveSOS (good cases)
     R = QQ[x,y];
     f = 4*x^4+y^4;
