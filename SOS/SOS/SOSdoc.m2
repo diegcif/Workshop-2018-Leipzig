@@ -255,6 +255,45 @@ doc /// --solveSOS
         Solver
 ///
 
+doc ///
+    Key
+    	toRing
+	(toRing, Ring, RingElement)
+	(toRing, Ring, SOSPoly)
+    Headline
+        Move a polynomial to a ring with different coefficients
+    Usage
+        f = toRing (R, f)
+        s = toRing (R, s)
+    Inputs
+        R:Ring
+          a polynomial ring with rational or real coefficients
+        f:RingElement
+          a polynomial or
+        s:SOSPoly
+          an @TO SOSPoly@
+    Outputs
+    	f:RingElement
+	  the input polynomial in the new ring, or
+	s:SOSPoly
+	  the input SOS polynomial in the new ring
+    Description
+    	Text
+    	    This method can be used to change a polynomial or SOSPoly with
+	    rational coefficients into one with real coefficients and vice
+	    versa.
+    	Example
+	    R = QQ[x,y];
+    	    s = sosPoly(R, {x+1,y}, {2,3});
+    	    S = RR[x,y];
+    	    s2 = toRing_S s
+    	    s3 = toRing_R s2
+    Caveat
+    	The function is designed to switch from real coefficients to rational
+	coefficients and back.  It's behaviour is undefined if both rings
+	have the same coefficient ring.  The obvious rounding issues apply.
+///
+
 doc /// --roundPSDmatrix
     Key
         roundPSDmatrix

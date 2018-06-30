@@ -261,7 +261,7 @@ changeRingField = (kk,R) -> kk(monoid[gens R])
 changePolyField = (kk,f) -> toRing(changeRingField(kk,ring f), f)
 
 toRing = method ()
-toRing (Ring, RingElement) = (S,f) -> (
+toRing (Ring, RingElement) := (S,f) -> (
     -- maps f to ring S
     R := ring f;
     kk := coefficientRing R;
@@ -269,15 +269,31 @@ toRing (Ring, RingElement) = (S,f) -> (
     -- QQ => RR
     if kk===QQ then return phi(f);
     -- RR => QQ
+    if not class kk === RealField then error "Expecting conversion from real here";
     (mon,coef) := coefficients f;
     mon = matrix {liftMonomial_S \ flatten entries mon};
-    K := 2^32;
+    K := 2^(precision kk);
     coef = matrix(QQ, {for c in flatten entries coef list round(K*sub(c,RR))/K});
     f' := (mon*transpose coef)_(0,0);
     return f';
     )
 
-toRing (Ring, SOSPoly) = (S, f) -> (
+toRing (Ring, SOSPoly) := (S, s) -> (
+    -- maps s to Ring S
+    R := ring s;
+    kk := coefficientRing R;
+    if kk===QQ then (
+	-- switching from QQ to RR coefficients
+	return sosPoly (S, (x -> sub (x, S)) \ gens s,
+	    (q -> sub (q, kk)) \ coefficients s)
+	);
+    if class kk === RealField and coefficientRing S===QQ then (
+	g' := toRing_S \ gens s;
+	K := 2^(precision kk);
+	c' := for c in coefficients s list round(K*sub(c,RR))/K;
+	return sosPoly (S, g', c')
+	);
+    error "Error: only conversion between real and rational coefficient fields is implemented."
     )
 
 liftMonomial = (S,f) -> (
@@ -1262,6 +1278,25 @@ TEST ///--substitute SOSPoly
     t1 = sosPoly(S, {x+1,y}, {2,3})
     t2 = sub (s, S)
     assert (t1 == t2)
+///
+
+TEST ///--toRing
+    R = QQ[x,y];
+    s = sosPoly(R, {x+1,y}, {2,3});
+    S = RR[x,y];
+    s2 = toRing_S s;
+    assert (class coefficientRing ring s2 === RealField)
+    s3 = toRing_R s2;
+    assert (s==s3)
+    
+    tol := 1e-10;
+    f = 0.1*x_S^2 + y^2
+    g = 1/10*(symbol x)_R^2 + (symbol y)_R^2
+    -- comparison in rationals is complicated:
+    residual = sum \\ abs \ (x -> lift (x,QQ)) \ flatten entries last coefficients (toRing_R f - g)
+    assert (residual < tol)
+    -- comparison in reals:
+    assert (norm (toRing_S g - f) < tol)
 ///
 
 TEST /// --solveSOS and sosdec (good cases)
