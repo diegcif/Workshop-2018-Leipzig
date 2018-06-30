@@ -30,10 +30,10 @@ Implement tests for the following methods
 --2) sub(SOSPoly,Ring)--
 --3) sosdec (has many tests already)--
 --4) toRing--
-5) roundPSDmatrix
-6) blkDiag
+--5) roundPSDmatrix--
+--6) blkDiag--
 7*) LDLdecomposition
-8) genericCombination
+--8) genericCombination--
 9*) choosemonp
 10) createSOSModel
 
@@ -82,7 +82,7 @@ Methods without documentation
 --3) toRing--
 --4) sub(SOSPoly,Ring)--
 --5) SOSPoly * SOSPoly--
-6) genericCombination
+--6) genericCombination--
 
 Methods whose documentation needs improvement
 

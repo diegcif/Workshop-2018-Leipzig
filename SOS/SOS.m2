@@ -574,8 +574,8 @@ blkDiag = args -> (
 dotProd = (a, b) -> sum apply (a, b, (i,j)->i*j);
 genericCombination = (h, D, homog) -> (
     -- h is a list of polynomials
-    -- D is a maximumd degree
-    -- returns generic combination of the
+    -- D is the output degree
+    -- returns generic combination of the input polynomials
     if #h==0 then error "list of polynomials is empty";
     if D < max\\first\degree\h then
         error "increase degree bound";
@@ -1269,6 +1269,28 @@ TEST /// --cleanSOS
     s = sosPoly(R, {x+1,y}, {2,1/100000})
     t = cleanSOS( s, 0.001 )
     assert (t == s)
+///
+
+TEST ///--genericCombination
+    R = QQ[x,y,z]
+    f1 = x + y
+    f2 = x^2 + z^2
+    h = {f1,f2}
+    (f,p,mult) = genericCombination (h,3, false)
+    assert (first degree f == 4) -- includes coefficients
+    assert (#p == 14)
+    assert (#mult == 2)
+    assert (first degree mult#0 == 3)
+    assert (first degree mult#1 == 2)
+    f1' = sub (f1, ring mult#0)
+    f2' = sub (f2, ring mult#0)
+    assert (mult#0*f1' + mult#1*f2' == f)
+    (fh,ph,multh) = genericCombination (h,3, true)
+    assert isHomogeneous fh
+    assert (#ph == 9)
+    f1' = sub (f1, ring multh#0)
+    f2' = sub (f2, ring multh#0)
+    assert (multh#0*f1' + multh#1*f2' == fh)
 ///
 
 TEST ///--substitute SOSPoly
