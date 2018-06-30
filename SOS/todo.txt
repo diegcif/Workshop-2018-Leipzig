@@ -71,6 +71,11 @@ failed".  Also: Why does the SDP fail?
 
 4) Numerators in bugs/sosdecTernaryHarris.m2 lie in different rings
 
+5) In the first test of lasserreHierarchy it sometimes happens that
+   rounding fails.  In this case the last few lines of solveSOS fail,
+   because they call changePolyField with f being a matrix.  I can't
+   reproduce this at the moment because rounding is always successful.
+
 #########################
 ##### DOCUMENTATION #####
 #########################

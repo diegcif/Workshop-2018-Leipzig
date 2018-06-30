@@ -1245,7 +1245,14 @@ checkLasserreHierarchy = solver -> (
     (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
     t1 := minb=!=null and (abs(minb) < tol);
     
-    results := {t0,t1};
+    --- Test 2
+    R = RR[x,y];
+    f = -y;
+    h1 = y-pi*x^2;
+    (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
+    t2 := minb=!=null and (abs(minb) < tol);
+    
+    results := {t0,t1,t2};
     informAboutTests (results);
     return results
     )
