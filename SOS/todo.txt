@@ -43,7 +43,7 @@ The following methods need a test that accepts the Solver as an input
 15*) solveSOS
 16) sosdecTernary
 17) sosInIdeal
-18) lowerBound
+--18) lowerBound--
 --19) lasserreHierarchy--
 
 The methods marked with (*) already have some tests, but need more.
@@ -75,6 +75,7 @@ failed".  Also: Why does the SDP fail?
    rounding fails.  In this case the last few lines of solveSOS fail,
    because they call changePolyField with f being a matrix.  I can't
    reproduce this at the moment because rounding is always successful.
+
 
 #########################
 ##### DOCUMENTATION #####

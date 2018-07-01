@@ -1210,9 +1210,9 @@ checkLowerBound = solver -> (
 
     -- Test 1
     R = QQ[x,y];
-    f = (x-y)^2 + x^2 + (y-4)^2;
+    f = (x - y)^2 + (x - 1)^4 + (y - 1)^2;
     (bound, sol) = lowerBound(f, Solver=>solver);
-    t1 := (abs (16/3-bound) < tol);
+    t1 := (abs bound < tol);
 
     -- Test 2
     R = RR[x,y];
