@@ -660,8 +660,9 @@ doc /// --lowerBound
 doc /// --lasserreHierarchy
     Key
         lasserreHierarchy
+	(lasserreHierarchy, RingElement,List,ZZ)
     Headline
-       SDP relaxation for a polynomial optimization problem
+       Sole polynomial optimization using SDP relaxation
     Usage
         (bound,sol) = lasserreHierarchy(f,h,d)
     Inputs
@@ -670,11 +671,12 @@ doc /// --lasserreHierarchy
         h:List
           a polynomials
         d:ZZ
+	  a degree for the SDP relaxation
     Outputs
         bound:
           a lower bound on f
         sol:
-          the minimizer of f (if it can be recovered)
+          the minimizer of f (if it can be recovered) or an empty list
     Consequences
     Description
       Text
@@ -682,6 +684,11 @@ doc /// --lasserreHierarchy
         $$min_x \, f(x) \,\,\, s.t. \,\,\, h_i(x) = 0, \, i=1..m$$
         The method returns a lower bound on the optimal value.
         In some cases the minimizer can be recovered.
+      Example
+        R = QQ[x,y];
+        f = -y;
+        h1 = y-x^2;
+        (minb, sol) = lasserreHierarchy (f, {h1}, 4)
     Caveat
         The minimizer cannot be recovered with Solver=>"M2".
     SeeAlso

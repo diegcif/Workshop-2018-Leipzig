@@ -44,7 +44,7 @@ The following methods need a test that accepts the Solver as an input
 16) sosdecTernary
 17) sosInIdeal
 18) lowerBound
-19) lasserreHierarchy
+--19) lasserreHierarchy--
 
 The methods marked with (*) already have some tests, but need more.
 
@@ -95,7 +95,7 @@ Methods whose documentation needs improvement
 8) roundPSDmatrix
 9) choosemonp
 10) lowerBound
-11) lasserreHierarchy
+11) lasserreHierarchy   TK: Options are not documented yet.
 
 ########################################
 ######### Comments and discussion ######
