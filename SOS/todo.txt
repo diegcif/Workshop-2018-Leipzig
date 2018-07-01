@@ -80,6 +80,9 @@ problem is probably ill-conditioned.
    because they call changePolyField with f being a matrix.  I can't
    reproduce this at the moment because rounding is always successful.
 
+6) LDLdecomposition decomposes (matrix{{1,-1,1},{-1,1,1},{1,1,1}})
+   but fails the test. Of course it has one eigenvalue negative, so it shouldn't decompose.
+
 
 #########################
 ##### DOCUMENTATION #####
@@ -126,7 +129,7 @@ tested?
    fields are real or both rational.  If we include the function we
    should define its interface first.
 
-
+5)When RoundPSD is not able to project to the linear subspace, we decided it should give us some matrix nonetheless. However, it returns projected matrix with negative eigenvalues. Was that desirable? Do we want the projection regardless of the sign of eigenvalues or do we want positive s.definite matrix regardless of the numerical entries?
 #########################
 ######### PAPER #########
 #########################

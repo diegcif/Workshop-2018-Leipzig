@@ -207,7 +207,7 @@ TEST /// --roundPSDmatrix
     Q=matrix{{2.01,0,0},{0,1.1,0},{0,0,2}}
     A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0}}
     b=matrix{{2},{1},{2}}
-    d=10
+    d=100
     Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},5=>{3,1},4=>{3,2},2=>{3,3}}
     LinIndex =applyPairs(Gramind,(i,j)->(j,i))
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
@@ -260,3 +260,31 @@ TEST /// --sosdec
     f=sosdec(Q,mon)
     assert(sumSOS f==transpose mon * Q *mon)
 ///
+
+TEST /// --roundPSDmatrix3 (doesn't work for d=1, bug in LDL)
+    Q=matrix{{1,-0.75,-0.75},{-0.75,1,0.99},{-0.75,0.99,1}}
+    eigenvalues Q
+    A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,0,0,1,0}}
+    b=matrix{{1},{1},{1},{1}}
+    d=10
+    Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
+    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
+    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
+    e=eigenvalues Qpsd
+    boolv2=if all(e, i -> i > 0) then 0 else 1
+    assert((boolv)==(false))
+///
+
+TEST /// --roundPSDmatrix4 
+    Q=matrix{{2,-1,-0.75},{-1,2,-1.1},{-0.75,-1.1,2}}
+    eigenvalues Q
+    A=matrix{{1,0,0,3,0,0},{2,1,0,0,5,0},{0,4,1,0,0,-3},{6,0,-5,0,1,0}}
+    b=matrix{{1},{4},{-3},{1}}
+    d=100
+    Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
+    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
+    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
+    assert((boolv)==(false))
+///
+
+
