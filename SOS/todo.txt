@@ -43,7 +43,7 @@ The following methods need a test that accepts the Solver as an input
 15*) solveSOS
 16) sosdecTernary
 17) sosInIdeal
---18) lowerBound--
+18) lowerBound   TK: With parameters is not tested yet
 --19) lasserreHierarchy--
 
 The methods marked with (*) already have some tests, but need more.
@@ -68,6 +68,10 @@ h1 = x^2 + y^2 + z^2 - 1
 
 3) Code in bugs/lowerBoundTwoVariate.m2 cannot handle that "SDP
 failed".  Also: Why does the SDP fail?
+
+TK: Actually both solvers fail on this example.  CSDP reports
+something about being stuck on an edge of the feasible region.  The
+problem is probably ill-conditioned.
 
 4) Numerators in bugs/sosdecTernaryHarris.m2 lie in different rings
 
@@ -95,7 +99,7 @@ Methods whose documentation needs improvement
 7) sumSOS
 8) roundPSDmatrix
 9) choosemonp
-10) lowerBound
+10) lowerBound   TK: Calling it with parameters is not documented
 11) lasserreHierarchy   TK: Options are not documented yet.
 
 ########################################

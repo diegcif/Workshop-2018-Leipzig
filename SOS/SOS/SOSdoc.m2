@@ -630,10 +630,12 @@ doc /// --sosInIdeal
 doc /// --lowerBound
     Key
         lowerBound
+	(lowerBound, RingElement)
     Headline
        finds lower bound for a polynomial
     Usage
         (bound,sol) = lowerBound(f)
+	(bound,sol) = lowerBound(f, L)
     Inputs
         f:RingElement
           a polynomial
