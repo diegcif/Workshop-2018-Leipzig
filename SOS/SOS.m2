@@ -335,63 +335,75 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
     (lmf,lm) := choosemonp (f,p,o);
     if #lm==0 then return (,,,,,,lm,,);
     
-    Hm := hashTable apply(lm, toList(1..#lm), identity);
-    HHm := combine(Hm,Hm,times,(j,k)-> if j>=k then (j,k) else () , join );
-    HHHm := applyValues(HHm,k->pack(2,k));
     -- This is a hash table that maps monomials into pairs of indices
+    Hm := hashTable for i to #lm-1 list lm#i => i+1;
+    HHHm := combine(Hm,Hm,times,(j,k)-> if j>=k then {{j,k}} else {} , join );
+    K := keys HHHm;
+    V := flatten values HHHm;
+
     -- Writes the matrix, in sparse form
     ndim := #lm; -- binomial(n+d,d);
     mdim := #HHHm; --binomial(n+2*d,2*d);
     
     -- A hash table with the coefficients (should be an easier way)
-    cf := coefficients f ;
-    Hf := hashTable transpose {flatten entries cf#0, flatten entries cf#1};
-    K := keys HHHm;
+    (mf,cf) := coefficients f ;
+    Hf := hashTable for i to numRows cf-1 list mf_(0,i) => sub(cf_(i,0),QQ);
     
     -- Linear constraints: b
-    b := transpose matrix(QQ,{apply (K, k-> (if Hf#?k then substitute(Hf#k,QQ) else 0))});
+    b := transpose matrix(QQ,{for k in K list
+        if Hf#?k then Hf#k else 0});
     
-    -- Linear constraints: Ai, Bi
-    Ah := new MutableHashTable;
-    Bh := new MutableHashTable;
-    LinSpaceDim := floor(ndim^2/2+ndim/2);
-    LinSpaceIndex := hashTable apply (flatten values HHHm, toList(0..LinSpaceDim-1),identity);
+    -- Linear constraints: A, B
+    LinSpaceDim := binomial(ndim+1,2);
+    LinSpaceIndex := hashTable for i to #V-1 list V#i => i;
     GramIndex := applyPairs (LinSpaceIndex, (i,j)->(j,i));
-    for k from 0 to #K-1 do (
-	-- Set constraints for monomial K#k 
-	PairsEntries := toList HHHm#(K#k) ;
-      	scan(PairsEntries, p -> (
-                if p_0 == p_1 then Ah#(k,LinSpaceIndex#p)=1_QQ else Ah#(k,LinSpaceIndex#p)=2_QQ;)
-	    );
+
+    Ah := flatten for k to #K-1 list (
+        -- Set constraints for monomial K#k 
+        PairsEntries := HHHm#(K#k) ;
+      	for e in PairsEntries list (
+            l := LinSpaceIndex#e;
+            v := if e_0 == e_1 then 1_QQ else 2_QQ;
+            (k,l) => v )
+        );
+    A := map(QQ^#K,QQ^(LinSpaceDim),Ah);
+
     -- Consider search-parameters:
-    for i from 0 to #p-1 do (
-	mp := K#k*p_i;
-	if Hf#?mp then Bh#(k,i) = -leadCoefficient Hf#mp;
-	);
-    );
+    Bh := flatten for k to #K-1 list (
+        for i to #p-1 list (
+            mp := K#k*p_i;
+            if not Hf#?mp then continue;
+            (k,i) => -Hf#mp )
+        );
+    B := map(QQ^#K,QQ^#p,Bh);
 
-    A := map(QQ^#K,QQ^(LinSpaceDim),(i,j) -> if Ah#?(i,j) then Ah#(i,j) else 0);
-    B := map(QQ^#K,QQ^#p,(i,j) -> if Bh#?(i,j) then Bh#(i,j) else 0);
+    (C,Ai,Bi) := getImageModel(A,B,b,#p,ndim,LinSpaceIndex);
 
+    return (C,Ai,Bi,A,B,b,transpose matrix {lm},GramIndex,LinSpaceIndex);
+    )
+
+getImageModel = (A,B,b,np,ndim,LinSpaceIndex) -> (
     -- compute the C matrix
     c := b//A;
     C := map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then c_(LinSpaceIndex#{i+1,j+1},0)
       	else c_(LinSpaceIndex#{j+1,i+1},0));
     -- compute the B_i matrices
-    if #p!=0 then (
-	bi := -B//A;
-	Bi := apply(0..#p-1, k->
-	    map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then bi_(LinSpaceIndex#{i+1,j+1},k)
-		else bi_(LinSpaceIndex#{j+1,i+1},k)));
-      	) else Bi = ();
+    if np!=0 then (
+        bi := -B//A;
+        Bi := toSequence for k to np-1 list
+            map(QQ^ndim,QQ^ndim, (i,j) -> 
+                if i>=j then bi_(LinSpaceIndex#{i+1,j+1},k)
+                else bi_(LinSpaceIndex#{j+1,i+1},k));
+    )else Bi = ();
     -- compute the A_i matrices     
     v := - generators kernel A;
 
-    Ai := apply(0..(rank v) - 1,k ->
-	map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then v_(LinSpaceIndex#{i+1,j+1},k) 
-            else v_(LinSpaceIndex#{j+1,i+1},k))); 
+    Ai := toSequence for k to (rank v)-1 list
+        map(QQ^ndim,QQ^ndim, (i,j) -> 
+            if i>=j then v_(LinSpaceIndex#{i+1,j+1},k) 
+            else v_(LinSpaceIndex#{j+1,i+1},k)); 
 
-    (C,Ai,Bi,A,B,b,transpose matrix {lm},GramIndex,LinSpaceIndex)
+    return (C,Ai,Bi);
     )
 
 choosemonp = {Verbose=>false} >> o -> (f,p) -> (
