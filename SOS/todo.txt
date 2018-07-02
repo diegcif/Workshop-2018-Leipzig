@@ -111,12 +111,15 @@ Methods whose documentation needs improvement
 
 1) The randomness of the SDP solvers is a severe problem, for example
 for the tests.  If a routine fails 1 out of 10 times, how should it be
+    diego: ideally we should only export cases tha are reliable,
+        at least with CSDP
 tested?
 
 2) The function sosInIdeal is worthless if it can't even solve
     R = QQ[x,y,z];
     h = {x-y, x+z};
     (s,mult) = sosInIdeal (h,10, Solver=>"CSDP");
+    diego: it seems to work with d=4, why did you choose d=10??
 
 3) Maybe we should implement that each RingMap can be applied to an
    SOSpoly?
@@ -128,8 +131,10 @@ tested?
    the code is not taking care of the case that both coefficient
    fields are real or both rational.  If we include the function we
    should define its interface first.
+   diego: my plan was to not export it. It's exported now for debugging purposes.
 
-5)When RoundPSD is not able to project to the linear subspace, we decided it should give us some matrix nonetheless. However, it returns projected matrix with negative eigenvalues. Was that desirable? Do we want the projection regardless of the sign of eigenvalues or do we want positive s.definite matrix regardless of the numerical entries?
+5) LDLdecomposition fails for {{1, -1, 1}, {-1, 1, 1}, {1, 1, 1}}
+
 #########################
 ######### PAPER #########
 #########################
