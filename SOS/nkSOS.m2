@@ -13,6 +13,53 @@ sospolyMultiply(SOSPoly,SOSPoly):= (g1,g2)-> (
     return sosPoly(g1#ring, flatten(q1),flatten(q2));
     )
 
+LDLdecompositionNidhi = (A) -> (
+     kk := ring A;
+     if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then
+        error "field must be QQ or RR";
+     if transpose A != A then error("Matrix must be symmetric.");
+
+     n := numRows A;
+     Ah := new MutableHashTable; map (kk^n,kk^n,(i,j)->Ah#(i,j) = A_(i,j));
+     v := new MutableList from toList apply(0..n-1,i->0_kk);
+     d := new MutableList from toList apply(0..n-1,i->0_kk);
+     piv := new MutableList from toList(0..n-1);
+     err := 0;
+
+     for k from 0 to n-1 do (
+      q := maxPosition apply(k..n-1, i->Ah#(i,i)); q = q + k;
+      -- Symmetric Matrix Permutation:
+      tmp := piv#q; piv#q = piv#k; piv#k = tmp;
+      scan(0..n-1, i-> (tmp := Ah#(i,q); Ah#(i,q) = Ah#(i,k); Ah#(i,k) = tmp;));
+      scan(0..n-1, i-> (tmp := Ah#(q,i); Ah#(q,i) = Ah#(k,i); Ah#(k,i) = tmp;));
+
+      --  positive semidefinite?
+      if Ah#(k,k) < 0 then (err = k+1; break;);
+      if (Ah#(k,k)==0) and (number(apply(0..n-1,i->Ah#(i,k)),f->f!=0)!=0) then (
+           err = k+1; break;);
+
+      -- Perform LDL factorization step:
+      if Ah#(k,k) > 0 then (
+                 scan(0..k-1, i -> v#i = Ah#(k,i)*Ah#(i,i));
+           Ah#(k,k) = Ah#(k,k) - sum apply(toList(0..k-1), i -> Ah#(k,i)*v#i);
+           if Ah#(k,k) < 0 then (err = k+1; break;);
+           if Ah#(k,k) > 0 then (
+            scan(k+1..n-1, i ->
+             (Ah#(i,k) = (Ah#(i,k)-sum apply(toList(0..k-1),j->Ah#(i,j)*v#j))
+             / Ah#(k,k);))
+                   );
+      );
+     );
+
+     A = map(kk^n,kk^n,(i,j)-> if i>j then Ah#(i,j) else if i==j then 1_kk else 0_kk);
+     D := map(kk^n,kk^n,(i,j)->if i==j then Ah#(i,j) else 0_kk);
+     P := submatrix(id_(kk^n),toList piv);
+     (A,D,P,err)
+)
+
+A = matrix(QQ,{{1,-1,1},{-1,1,1},{1,1,1}})
+(L,D,P,err) = LDLdecompositionNidhi A
+end
 
 --EXAMPLE
 R = QQ[x,y,z]
