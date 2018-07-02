@@ -213,7 +213,7 @@ TEST /// --roundPSDmatrix
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
     e=eigenvalues Qpsd
     boolv2=if all(e, i -> i > 0) then 0 else 1
-    assert((boolv,boolv2)==(true,0))
+    assert((boolv,Qpsd)==(true,matrix(QQ,{{2,0,0},{0,1,0},{0,0,2}})))
 ///
 
 TEST /// --roundPSDmatrix2
@@ -227,7 +227,7 @@ TEST /// --roundPSDmatrix2
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
     e=eigenvalues Qpsd
     boolv2=if all(e, i -> i > 0) then 0 else 1
-    assert((boolv,boolv2)==(true,0))
+    assert((boolv,Qpsd)==(true,matrix(QQ,{{2,0,1},{0,1,0},{1,0,2}})))
 ///
 
 TEST /// --blkDiag1
@@ -270,9 +270,7 @@ TEST /// --roundPSDmatrix3 (doesn't work for d=1, bug in LDL)
     Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
     LinIndex =applyPairs(Gramind,(i,j)->(j,i))
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
-    e=eigenvalues Qpsd
-    boolv2=if all(e, i -> i > 0) then 0 else 1
-    assert((boolv)==(false))
+    assert((Qpsd)==(matrix{{1, -3/4, 1}, {-3/4, 1, 507/512}, {1, 507/512, 1}}))
 ///
 
 TEST /// --roundPSDmatrix4 
@@ -284,7 +282,11 @@ TEST /// --roundPSDmatrix4
     Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
     LinIndex =applyPairs(Gramind,(i,j)->(j,i))
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
-    assert((boolv)==(false))
+    assert((Qpsd)==matrix{{27446399799074697971/15073547952809050112, -4124283948755215953/
+   15073547952809050112, 8072814922052298793/45220643858427150336}, 
+ {-4124283948755215953/15073547952809050112, -24159897971001080447/
+   45220643858427150336, 14488868131185674623/15073547952809050112}, 
+ {8072814922052298793/45220643858427150336, 14488868131185674623/
+   15073547952809050112, 91377473489393942387/45220643858427150336}})
 ///
-
 
