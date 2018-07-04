@@ -56,12 +56,6 @@ NOTE: All methods must be tested with inputs over QQ and over RR.
 
 Known bugs:
 
-1) This input fails:
-R = QQ[x,y,z]
-f = z 
-h1 = x^2 + y^2 + z^2 - 1
-(m,s)= lasserreHierarchy (f, {h1}, 6, Solver=>"CSDP")
-
 2) sosInIdeal({x+1},2) fails over QQ[x], but works over QQ[x,y]
 
 2') sosInIdeal({(x+1)^2},2) also fails

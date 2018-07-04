@@ -50,6 +50,8 @@ export {
     "project2linspace",
     "toRing",
     "changeRingField",
+    "changePolyField",
+    "changeMatrixField",
 --Method options
     "RndTol",
     "UntilObjNegative",
@@ -239,13 +241,13 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     if kk=!=QQ then
         return (Q,sub(mon,R0),X,pvec0);
     if o.RndTol==infinity then
-        return (Q,changePolyField(RR,mon),X,pvec0);
+        return (Q,changeMatrixField(RR,mon),X,pvec0);
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
     if ok then return (Qp,mon,X,pVec);
     print "rounding failed, returning real solution";
-    return (Q,changePolyField(RR,mon),X,pvec0);
+    return (Q,changeMatrixField(RR,mon),X,pvec0);
     )
 
 -- Variants of solveSOS with fewer arguments
@@ -259,6 +261,16 @@ solveSOS(RingElement) := o -> (f) ->
 changeRingField = (kk,R) -> kk(monoid[gens R])
 
 changePolyField = (kk,f) -> toRing(changeRingField(kk,ring f), f)
+
+changeMatrixField = (kk, M) -> (
+    -- M is a matrix whose entries are polynomials whose coefficient
+    -- ring should be changed.
+    e := entries M;
+    R := changeRingField(kk, ring e#0#0);
+    matrix for row in e list(
+	for entry in row list(
+	    toRing(R, entry))))
+
 
 toRing = method ()
 toRing (Ring, RingElement) := (S,f) -> (
@@ -1263,8 +1275,15 @@ checkLasserreHierarchy = solver -> (
     h1 = y-pi*x^2;
     (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
     t2 := minb=!=null and (abs(minb) < tol);
+
+    -- Test 3
+    R = QQ[x,y,z];
+    f = z;
+    h1 = x^2 + y^2 + z^2 - 1;
+    (minb,sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
+    t3 := minb=!=null and (abs(minb + 1) < tol);
     
-    results := {t0,t1,t2};
+    results := {t0,t1,t2,t3};
     informAboutTests (results);
     return results
     )
