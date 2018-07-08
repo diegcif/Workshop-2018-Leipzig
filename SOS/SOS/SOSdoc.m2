@@ -697,20 +697,26 @@ doc /// --lasserreHierarchy
         lowerBound
 ///
 
-doc /// --checkSolveSDP
+doc /// --checkSolver
     Key
-        checkSolveSDP
+        checkSolver
+        (checkSolver,String)
+        (checkSolver,String,String)
+        (checkSolver,String,Function)
     Headline
-        tests method "solveSDP" (for developers)
+        tests an SDP solver
     Usage
-        checkSolveSDP solver
+        checkSolver(solver)
+        checkSolver(solver,function)
     Inputs
         solver:String
-          either "M2" or "CSDP"
+          either "M2" or "CSDP" or "SDPA"
+        function:String
+          (optional)
     Consequences
     Description
       Text
-        This function tests that @TO solveSDP@ works properly.
+        This function tests that a function works works properly using a specified solver.
       Code
       Pre
     SeeAlso
@@ -743,7 +749,8 @@ document { --Solver
         [solveSOS,Solver],
         [sosInIdeal,Solver],
         [sosdecTernary,Solver],
-        [lowerBound,Solver]
+        [lowerBound,Solver],
+        [lasserreHierarchy,Solver]
         },
     Headline => "semidefinite programming solver",
     "The following SDP solvers are available:",

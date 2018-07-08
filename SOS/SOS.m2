@@ -29,23 +29,18 @@ export {
     "solveSOS",
     "sosdec",
     "sosdecTernary",
-    "checkSosdecTernary",
     "sumSOS",
     "blkDiag",
     "LDLdecomposition",
     "solveSDP",
-    "checkSolveSDP",
     "genericCombination",
     "cleanSOS",
     "sosInIdeal",
-    "checkSosInIdeal",
-    "checkSolveSOS",
     "lowerBound",
-    "checkLowerBound",
     "lasserreHierarchy",
-    "checkLasserreHierarchy",
     "roundPSDmatrix",
---debugging
+    "checkSolver",
+--only for debugging
     "createSOSModel",
     "choosemonp",
     "project2linspace",
@@ -1094,6 +1089,29 @@ readSDPA = (fout,n,Verbose) -> (
 --###################################
 -- Methods for testing
 --###################################
+
+checkSolver = method()
+checkSolver(String,String) := (solver,fun) -> (
+    checkMethod := hashTable {
+        "solveSDP" => checkSolveSDP,
+        "solveSOS" => checkSolveSOS,
+        "sosdecTernary" => checkSosdecTernary,
+        "sosInIdeal" => checkSosInIdeal,
+        "lowerBound" => checkLowerBound,
+        "lasserreHierarchy" => checkLasserreHierarchy };
+    if checkMethod#?fun then 
+        return checkMethod#fun(solver);
+    if fun != "AllMethods" then
+        error "No test implemented for this function";
+    for f in keys checkMethod do(
+        print "################################";
+        print("checking method "|f);
+        print "################################";
+        checkMethod#f(solver);
+        );
+    )
+checkSolver(String,Function) := (solver,fun) -> checkSolver(solver,toString fun)
+checkSolver(String) := (solver) -> checkSolver(solver,"AllMethods")
 
 -- A method to inform about the results of the tests in one function
 informAboutTests = t -> (
