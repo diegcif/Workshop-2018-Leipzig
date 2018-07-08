@@ -94,46 +94,15 @@ sospolyPower(SOSPoly,ZZ) := (p1,D)->(
 sospolyPower(g1,4)
 
 TEST /// --SOSmult
-    R = QQ[x,y,z]
-    coeff1={1,2,3,4}
-    pol1={x^2,x*y,y^2,x}
-    p1=sosPoly(pol1,coeff1)
-    S=QQ[x,y,z,w]
-    coeff2={3,1/2,1/4}
-    pol2={y^3,x*w*z,y*z^2}
-    p2=sosPoly(S,pol2,coeff2)
-    p4=sub(p1,S)
-    p3=sospolyMultiply(p4,p2)
-    assert(sumSOS(p3)===sumSOS(p4)*sumSOS(p2))
-///    
-
-TEST /// --SOSmult2
     R = QQ[x,y,z,w]
-    coeff1={1,2,3,4}
-    pol1={x^2,x*y,y^2,x}
-    p1=sosPoly(pol1,coeff1)
-    coeff2={3,1/2,1/4}
-    pol2={y^3,x*w*z,y*z^2}
-    p2=sosPoly(pol2,coeff2)
-    p3=sospolyMultiply(p1,p2)
-    assert(sumSOS(p3)===sumSOS(p1)*sumSOS(p2))
-///    
-  
-  
-
-
-TEST /// --SOSmult4
-    R = QQ[x,y,z]
-    coeff1={1,2,3,4}
-    pol1={x^2,x*y,y^2,x}
-    p1=sosPoly(pol1,coeff1)
-    S=RR[x,y,z,w]
-    coeff2={3.1,1.31,2.0}
-    pol2={y^3,x*w*z,y*z^2}
-    p2=sosPoly(S,pol2,coeff2)
-    p4=sub(p1,S)
-    p3=sospolyMultiply(p4,p2)
-    assert(sumSOS(p3)===sumSOS(p4)*sumSOS(p2))
+    p1=sosPoly(R,{x^2-x*y,y^2+1,x},{1,2,3})
+    p2=sosPoly(R,{y^3,x*w*z,y*z^2},{3,1/2,1/4})
+    assert(sumSOS(p1*p2)==sumSOS(p1)*sumSOS(p2))
+    assert(sumSOS(p1^4)==sumSOS(p1)^4)
+    R = RR[x,y,z,w]
+    p1=sosPoly(R,{x^2-x*y,y^2+1,x},{1.32,1.47,12./7})
+    p2=sosPoly(R,{y^3,x*w*z,y*z^2},{3.1,1.31,2.0})
+    assert( norm(sumSOS(p1*p2)-sumSOS(p1)*sumSOS(p2)) < 1e-8 )
 ///
 
 TEST /// --sub(SOS)1
@@ -157,7 +126,7 @@ TEST /// --sub(SOS)2
     assert(p4#ring===S)
 ///  
 
-TEST /// --sospoly and sum of squares
+TEST /// --sosPoly and sumSOS
     R = QQ[x,y,z]
     coeff1={3,1,1,1/4,1}
     pol1={-(1/2)*x^3*y-(1/2)*x*y^3+x*y*z^2, x^2*y^2-z^4, x^2*y*z-y*z^3,
@@ -179,41 +148,6 @@ TEST /// --sospoly and sum of squares
     assert(sumSOS(p1)===p2)
 ///
 
-TEST /// --sospolypower
-    R = QQ[x,y,z]
-    coeff1={1,1,1,3/4,1}
-    pol1={x^4-(1/2)*x^2*y^2-(1/2)*y^4-(1/2)*x^2*z^2+y^2*z^2-(1/2)*z^4,
-       x^3*y-x*y^3, x^3*z-x*z^3, x^2*y^2-y^4-x^2*z^2+z^4, y^3*z-y*z^3}
-    p1=sosPoly(R,pol1,coeff1)
-    p2=sospolyPower(p1,2)
-    q1=sumSOS(p1)
-    q2=sumSOS(p2)
-    assert(q2==q1^2)
-///
-
-TEST /// --sospolypower
-    R = QQ[x,y,z]
-    coeff1={1,1,1,3/4,1}
-    pol1={x^4-(1/2)*x^2*y^2-(1/2)*y^4-(1/2)*x^2*z^2+y^2*z^2-(1/2)*z^4,
-       x^3*y-x*y^3, x^3*z-x*z^3, x^2*y^2-y^4-x^2*z^2+z^4, y^3*z-y*z^3}
-    p1=sosPoly(R,pol1,coeff1)
-    p2=sospolyPower(p1,6)
-    q1=sumSOS(p1)
-    q2=sumSOS(p2)
-    assert(q2==q1^6)
-///
-
-TEST /// --sospolypower
-    R = QQ[x,y,z]
-    coeff1={3,1,1,1/4,1}
-    pol1={-(1/2)*x^3*y-(1/2)*x*y^3+x*y*z^2, x^2*y^2-z^4, x^2*y*z-y*z^3,
-      -x^3*y+x*y^3, x*y^2*z-x*z^3}
-    p1=sosPoly(R,pol1,coeff1)
-    p2=sospolyPower(p1,8)
-    q1=sumSOS(p1)
-    q2=sumSOS(p2)
-    assert(q2==q1^8)
-///
 
 TEST /// --cleanSOS
     R = QQ[x,y,z]
@@ -250,40 +184,10 @@ TEST /// --toRing
     assert(class f'===S)
 ///
 
-TEST /// --roundPSDmatrix
-    Q=matrix{{2.01,0,0},{0,1.1,0},{0,0,2}}
-    A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0}}
-    b=matrix{{2},{1},{2}}
-    d=100
-    Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},5=>{3,1},4=>{3,2},2=>{3,3}}
-    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
-    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
-    e=eigenvalues Qpsd
-    boolv2=if all(e, i -> i > 0) then 0 else 1
-    assert((boolv,Qpsd)==(true,matrix(QQ,{{2,0,0},{0,1,0},{0,0,2}})))
-///
-
-TEST /// --roundPSDmatrix2
-    Q=matrix{{2.01,0,1},{0,1.1,0},{1,0,2}}
-    eigenvalues Q
-    A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,0,0,1,0}}
-    b=matrix{{2},{1},{2},{1}}
-    d=10
-    Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
-    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
-    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
-    e=eigenvalues Qpsd
-    boolv2=if all(e, i -> i > 0) then 0 else 1
-    assert((boolv,Qpsd)==(true,matrix(QQ,{{2,0,1},{0,1,0},{1,0,2}})))
-///
-
 TEST /// --blkDiag1
     A1=matrix{{1,0},{0,2}}
     A2=matrix{{1,1,3},{4,2,5},{2,1,1}}
     assert(blkDiag(A1,A2)==matrix{{1,0,0,0,0},{0,2,0,0,0},{0,0,1,1,3},{0,0,4,2,5},{0,0,2,1,1}})
-///
-
-TEST /// --blkDiag2
     A1=matrix{{1.4,0,2.5},{0,2,1.9},{1.2,3,6.1}}
     A2=matrix{{2.6,1,0},{4.1,2.6,5},{1.5,1,1}}
     assert(blkDiag(A1,A2)==matrix{{1.4,0,2.5,0,0,0},{0,2,1.9,0,0,0},{1.2,3,6.1,0,0,0},{0,0,0,2.6,1,0},{0,0,0,4.1,2.6,5},{0,0,0,1.5,1,1}})
@@ -291,26 +195,27 @@ TEST /// --blkDiag2
 
 TEST /// --sosdec
     R=QQ[x,y,z]
-    Q=matrix{{1,0,0},{0,1,0},{0,0,1}}
-    Q=promote(Q,QQ)
-    mon=matrix{{x^2},{x*z},{y^2}}
-    f=sosdec(Q,mon)
-    assert(sumSOS f==transpose mon * Q *mon)
-///
-
-TEST /// --sosdec
-    R=QQ[x,y,z]
     Q=matrix{{1,-1/2,1},{-1/2,1,-1/2},{1,-1/2,1}}
-    --eigenvalues Q
     Q=promote(Q,QQ)
     mon=matrix{{x^3},{x^2*z},{y*z^2}}
     f=sosdec(Q,mon)
     assert(sumSOS f==transpose mon * Q *mon)
 ///
 
+TEST /// --roundPSDmatrix
+    Q=matrix{{2.01,0,0},{0,1.1,0},{0,0,2}}
+    A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0}}
+    b=matrix{{2},{1},{2}}
+    d=100
+    Gramind=hashTable {0=>{1,1}, 3=>{2,1}, 1=>{2,2}, 5=>{3,1}, 4=>{3,2}, 2=>{3,3}}
+    LinIndex =applyPairs(Gramind,(i,j)->(j,i))
+    (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
+    assert(boolv)
+    assert(Qpsd==matrix(QQ,{{2,0,0},{0,1,0},{0,0,2}}))
+///
+
 TEST /// --roundPSDmatrix3 (doesn't work for d=1, bug in LDL)
     Q=matrix{{1,-0.75,-0.75},{-0.75,1,0.99},{-0.75,0.99,1}}
-    eigenvalues Q
     A=matrix{{1,0,0,0,0,0},{0,1,0,0,0,0},{0,0,1,0,0,0},{0,0,0,0,1,0}}
     b=matrix{{1},{1},{1},{1}}
     d=10
@@ -322,18 +227,13 @@ TEST /// --roundPSDmatrix3 (doesn't work for d=1, bug in LDL)
 
 TEST /// --roundPSDmatrix4 
     Q=matrix{{2,-1,-0.75},{-1,2,-1.1},{-0.75,-1.1,2}}
-    eigenvalues Q
     A=matrix{{1,0,0,3,0,0},{2,1,0,0,5,0},{0,4,1,0,0,-3},{6,0,-5,0,1,0}}
     b=matrix{{1},{4},{-3},{1}}
     d=100
     Gramind=hashTable {0 => {1,1},3 => {2,1},1 => {2,2},4=>{3,1},5=>{3,2},2=>{3,3}}
     LinIndex =applyPairs(Gramind,(i,j)->(j,i))
     (boolv,Qpsd)=roundPSDmatrix(Q,A,b,d,Gramind,LinIndex)
-    assert((Qpsd)==matrix{{27446399799074697971/15073547952809050112, -4124283948755215953/
-   15073547952809050112, 8072814922052298793/45220643858427150336}, 
- {-4124283948755215953/15073547952809050112, -24159897971001080447/
-   45220643858427150336, 14488868131185674623/15073547952809050112}, 
- {8072814922052298793/45220643858427150336, 14488868131185674623/
-   15073547952809050112, 91377473489393942387/45220643858427150336}})
+    Qtrue = matrix{{27446399799074697971/15073547952809050112, -4124283948755215953/ 15073547952809050112, 8072814922052298793/45220643858427150336}, {-4124283948755215953/15073547952809050112, -24159897971001080447/ 45220643858427150336, 14488868131185674623/15073547952809050112}, {8072814922052298793/45220643858427150336, 14488868131185674623/ 15073547952809050112, 91377473489393942387/45220643858427150336}}
+    assert(Qpsd==Qtrue)
 ///
 

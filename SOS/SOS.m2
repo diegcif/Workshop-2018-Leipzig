@@ -123,6 +123,13 @@ SOSPoly * SOSPoly := (g1,g2)-> (
     return sosPoly(g1#ring, flatten(q1),flatten(q2));
     )
 
+SOSPoly ^ ZZ := (p1,D)->(
+    if D<=0 then error "power should be a positive integer.";
+    if odd D then error "power should be an even integer.";
+    p2 := (sumSOS p1)^(D//2);
+    return sosPoly(ring p1,{p2},{1});
+    )
+
 SOSPoly == RingElement := (S, f) -> (
     if ring S=!=ring f then
         error "Cannot compare elements of different rings. Try to use 'sub'.";
@@ -1296,6 +1303,30 @@ beginDocumentation()
 
 load "./SOS/SOSdoc.m2"
 
+TEST /// --sosPoly and sumSOS
+    R = QQ[x,y,z]
+    coeff1={3,1,1,1/4,1}
+    pol1={-(1/2)*x^3*y-(1/2)*x*y^3+x*y*z^2, x^2*y^2-z^4, x^2*y*z-y*z^3,
+      -x^3*y+x*y^3, x*y^2*z-x*z^3}
+    p1=sosPoly(R,pol1,coeff1)
+    p2=x^6*y^2 + 2*x^4*y^4 + x^2*y^6 - 2*x^4*y^2*z^2 - 2*x^2*y^4*z^2 - 
+    3*x^2*y^2*z^4 + x^2*z^6 + y^2*z^6 + z^8
+    assert(sumSOS(p1)===p2)
+///
+
+TEST /// --SOSmult
+    R = QQ[x,y,z,w]
+    p1=sosPoly(R,{x^2-x*y,y^2+1,x},{1,2,3})
+    p2=sosPoly(R,{y^3,x*w*z,y*z^2},{3,1/2,1/4})
+    assert(sumSOS(p1*p2)==sumSOS(p1)*sumSOS(p2))
+    assert(sumSOS(p1^4)==sumSOS(p1)^4)
+    R = RR[x,y,z,w]
+    p1=sosPoly(R,{x^2-x*y,y^2+1,x},{1.32,1.47,12./7})
+    p2=sosPoly(R,{y^3,x*w*z,y*z^2},{3.1,1.31,2.0})
+    assert( norm(sumSOS(p1*p2)-sumSOS(p1)*sumSOS(p2)) < 1e-8 )
+    assert( norm(sumSOS(p1^4)-sumSOS(p1)^4) < 1e-8 )
+///
+
 TEST /// --cleanSOS
     R = RR[x,y];
     s = sosPoly(R, {x+1,y}, {2,0.0001})
@@ -1307,28 +1338,6 @@ TEST /// --cleanSOS
     s = sosPoly(R, {x+1,y}, {2,1/100000})
     t = cleanSOS( s, 0.001 )
     assert (t == s)
-///
-
-TEST ///--genericCombination
-    R = QQ[x,y,z]
-    f1 = x + y
-    f2 = x^2 + z^2
-    h = {f1,f2}
-    (f,p,mult) = genericCombination (h,3, false)
-    assert (first degree f == 4) -- includes coefficients
-    assert (#p == 14)
-    assert (#mult == 2)
-    assert (first degree mult#0 == 3)
-    assert (first degree mult#1 == 2)
-    f1' = sub (f1, ring mult#0)
-    f2' = sub (f2, ring mult#0)
-    assert (mult#0*f1' + mult#1*f2' == f)
-    (fh,ph,multh) = genericCombination (h,3, true)
-    assert isHomogeneous fh
-    assert (#ph == 9)
-    f1' = sub (f1, ring multh#0)
-    f2' = sub (f2, ring multh#0)
-    assert (multh#0*f1' + multh#1*f2' == fh)
 ///
 
 TEST ///--substitute SOSPoly
@@ -1357,6 +1366,15 @@ TEST ///--toRing
     assert (residual < tol)
     -- comparison in reals:
     assert (norm (toRing_S g - f) < tol)
+///
+
+TEST /// --sosdec
+    R=QQ[x,y,z]
+    Q=matrix{{1,-1/2,1},{-1/2,1,-1/2},{1,-1/2,1}}
+    Q=promote(Q,QQ)
+    mon=matrix{{x^3},{x^2*z},{y*z^2}}
+    f=sosdec(Q,mon)
+    assert(sumSOS f==transpose mon * Q *mon)
 ///
 
 TEST /// --solveSOS and sosdec (good cases)
@@ -1410,7 +1428,16 @@ TEST /// --choosemonp
     (lmf,lmsos) = choosemonp(f-t,{t}, Verbose=>true)
     assert( #lmsos == 6 )
 ///
-        
+
+TEST /// --blkDiag
+    A1=matrix{{1,0},{0,2}}
+    A2=matrix{{1,1,3},{4,2,5},{2,1,1}}
+    assert(blkDiag(A1,A2)==matrix{{1,0,0,0,0},{0,2,0,0,0},{0,0,1,1,3},{0,0,4,2,5},{0,0,2,1,1}})
+    A1=matrix{{1.4,0,2.5},{0,2,1.9},{1.2,3,6.1}}
+    A2=matrix{{2.6,1,0},{4.1,2.6,5},{1.5,1,1}}
+    assert(blkDiag(A1,A2)==matrix{{1.4,0,2.5,0,0,0},{0,2,1.9,0,0,0},{1.2,3,6.1,0,0,0},{0,0,0,2.6,1,0},{0,0,0,4.1,2.6,5},{0,0,0,1.5,1,1}})
+///
+
 TEST /// --LDLdecomposition
 --  Simple example
     A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
@@ -1424,6 +1451,28 @@ TEST /// --LDLdecomposition
     A = V * transpose V 
     (L,D,P,err) = LDLdecomposition(A)
     assert(L*D*transpose L == transpose P * A * P)
+///
+
+TEST ///--genericCombination
+    R = QQ[x,y,z]
+    f1 = x + y
+    f2 = x^2 + z^2
+    h = {f1,f2}
+    (f,p,mult) = genericCombination (h,3, false)
+    assert (first degree f == 4) -- includes coefficients
+    assert (#p == 14)
+    assert (#mult == 2)
+    assert (first degree mult#0 == 3)
+    assert (first degree mult#1 == 2)
+    f1' = sub (f1, ring mult#0)
+    f2' = sub (f2, ring mult#0)
+    assert (mult#0*f1' + mult#1*f2' == f)
+    (fh,ph,multh) = genericCombination (h,3, true)
+    assert isHomogeneous fh
+    assert (#ph == 9)
+    f1' = sub (f1, ring multh#0)
+    f2' = sub (f2, ring multh#0)
+    assert (multh#0*f1' + multh#1*f2' == fh)
 ///
 
 TEST /// --solveSDP
