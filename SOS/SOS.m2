@@ -39,6 +39,7 @@ export {
     "cleanSOS",
     "sosInIdeal",
     "checkSosInIdeal",
+    "checkSolveSOS",
     "lowerBound",
     "checkLowerBound",
     "lasserreHierarchy",
@@ -1100,8 +1101,7 @@ informAboutTests = t -> (
     )
 
 --checkSolveSDP
-
-checkSolveSDP = (solver) -> (
+checkSolveSDP = solver -> (
     tol := .001;
     equal := (y0,y) -> y=!=null and norm(y0-y)<tol*(1+norm(y0));
     local C; local b; local A; local A1; local A2; local A3; 
@@ -1168,6 +1168,57 @@ checkSolveSDP = (solver) -> (
     assert(y==0);
     return test;
 )
+
+--checkSolveSOS
+checkSolveSOS = solver -> (
+    local x; x= symbol x;
+    local y; y= symbol y;
+    local z; z= symbol z;
+    local w; w= symbol w;
+    local t; t= symbol t;
+    local tval;
+    ---------------TEST0---------------
+    --good cases
+    R := QQ[x,y];
+    f := 4*x^4+y^4;
+    (Q,mon,X) := solveSOS(f,Solver=>solver);
+    a := sosdec(Q,mon);
+    t0 := ( f == sumSOS a );
+
+    f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
+    (Q,mon,X) = solveSOS(f,Solver=>solver);
+    a = sosdec(Q,mon);
+    t1 := ( f == sumSOS a );
+
+    R = QQ[x,y,z];
+    f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
+    (Q,mon,X) = solveSOS(f,Solver=>solver);
+    a = sosdec(Q,mon);
+    t2 := ( f == sumSOS a );
+    
+    R = QQ[x,y,z,w];
+    f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
+    (Q,mon,X) = solveSOS(f,Solver=>solver);
+    a = sosdec(Q,mon);
+    t3 := ( f == sumSOS a );
+
+    R = QQ[x,z,t];
+    f = x^4+x^2+z^6-3*x^2*z^2-t;
+    (Q,mon,X,tval) = solveSOS (f,{t},-t,RndTol=>12,Solver=>solver);
+    t4 := ( tval#0 == -729/4096 ) and ( sub(f,t=>tval#0) == transpose(mon)*Q*mon );
+
+    --bad cases
+    R = QQ[x,y,t];
+    f = x^4*y^2 + x^2*y^4 - 3*x^2*y^2 + 1; --Motzkin
+    (Q,mon,X) = solveSOS(f,Solver=>solver); 
+    t5 := ( Q === null );
+    (Q,mon,X,tval) = solveSOS(f-t,{t},-t, Solver=>solver); 
+    t6 := ( Q === null );
+
+    results := {t0,t1,t2,t3,t4,t5,t6};
+    informAboutTests (results);
+    return results
+    )
 
 -- check sosdecTernary
 checkSosdecTernary = solver -> (
@@ -1380,46 +1431,6 @@ TEST /// --sosdec
     assert( sosdec(Q ,   ) === (,) )
 ///
 
-TEST /// --solveSOS (good cases)
-    R = QQ[x,y];
-    f = 4*x^4+y^4;
-    (Q,mon,X) = solveSOS f
-    a = sosdec(Q,mon)
-    assert( f == sumSOS a )
-
-    f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
-    (Q,mon,X) = solveSOS f
-    a = sosdec(Q,mon)
-    assert( f == sumSOS a )
-
-    R = QQ[x,y,z];
-    f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
-    (Q,mon,X) = solveSOS f
-    a = sosdec(Q,mon)
-    assert( f == sumSOS a )
-    
-    R = QQ[x,y,z,w];
-    f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
-    (Q,mon,X) = solveSOS f
-    a = sosdec(Q,mon)
-    assert( f == sumSOS a )
-
-    R = QQ[x,z,t];
-    f = x^4+x^2+z^6-3*x^2*z^2-t;
-    (Q,mon,X,tval) = solveSOS (f,{t},-t,RndTol=>12);
-    assert( tval#0 == -729/4096 )
-    assert( sub(f,t=>tval#0) == transpose(mon)*Q*mon )
-///
-
-TEST /// --solveSOS (bad cases)
-    R = QQ[x,y,t];
-    f = x^4*y^2 + x^2*y^4 - 3*x^2*y^2 + 1 --Motzkin
-    (Q,mon,X) = solveSOS(f); 
-    assert( Q === null )
-    (Q,mon,X,tval) = solveSOS(f-t,{t},-t); 
-    assert( Q === null )
-///
-
 TEST /// --choosemonp
     R = QQ[x,y,t];
     f = x^4+2*x*y-x+y^4
@@ -1482,6 +1493,11 @@ TEST ///--genericCombination
 TEST /// --solveSDP
     test := checkSolveSDP("M2")
     assert(test#0 and test#1 and test#2) --(test3 fails)
+///
+
+TEST /// --solveSOS
+    test := checkSolveSOS("M2")
+    assert(all(test,identity))
 ///
 
 TEST /// --lasserreHierarchy
