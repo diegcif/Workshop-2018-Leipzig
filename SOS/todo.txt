@@ -28,7 +28,7 @@ Implement tests for the following methods
 
 --1) cleanSOS--
 --2) sub(SOSPoly,Ring)--
---3) sosdec (has many tests already)--
+3) sosdec (missing over RR)
 --4) toRing--
 --5) roundPSDmatrix--
 --6) blkDiag--

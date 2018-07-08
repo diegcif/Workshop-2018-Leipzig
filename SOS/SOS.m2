@@ -531,7 +531,7 @@ PSDdecomposition = (A) -> (
     tol := 1e-9;
     (e,V) := eigenvectors(A,Hermitian=>true);
     err := if all(e, i -> i > -tol) then 0 else 1;
-    e = apply(e, i -> max(i,0));
+    e = max_0 \ e;
     D := diagonalMatrix e;
     P := id_(kk^(numRows A));
     return (V,D,P,err);
@@ -542,36 +542,36 @@ LDLdecomposition = (A) -> (
      if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then
         error "field must be QQ or RR";
      if transpose A != A then error("Matrix must be symmetric.");
+     tol := if kk===QQ then 0 else 1e-9;
 
      n := numRows A;
      Ah := new MutableHashTable; map (kk^n,kk^n,(i,j)->Ah#(i,j) = A_(i,j));
-     v := new MutableList from toList apply(0..n-1,i->0_kk);
-     d := new MutableList from toList apply(0..n-1,i->0_kk);
+     v := new MutableList from for i to n-1 list 0_kk;
+     d := new MutableList from for i to n-1 list 0_kk;
      piv := new MutableList from toList(0..n-1);
      err := 0;
 
      for k from 0 to n-1 do (
-      q := maxPosition apply(k..n-1, i->Ah#(i,i)); q = q + k;
+      q := k + maxPosition apply(k..n-1, i->Ah#(i,i));
       -- Symmetric Matrix Permutation:
       tmp := piv#q; piv#q = piv#k; piv#k = tmp;
-      scan(0..n-1, i-> (tmp := Ah#(i,q); Ah#(i,q) = Ah#(i,k); Ah#(i,k) = tmp;));
-      scan(0..n-1, i-> (tmp := Ah#(q,i); Ah#(q,i) = Ah#(k,i); Ah#(k,i) = tmp;));
+      for i to n-1 do (tmp := Ah#(i,q); Ah#(i,q) = Ah#(i,k); Ah#(i,k) = tmp;);
+      for i to n-1 do (tmp := Ah#(q,i); Ah#(q,i) = Ah#(k,i); Ah#(k,i) = tmp;);
 
       --  positive semidefinite?
-      if Ah#(k,k) < 0 then (err = k+1; break;);
-      if (Ah#(k,k)==0) and (number(apply(0..n-1,i->Ah#(i,k)),f->f!=0)!=0) then (
-           err = k+1; break;);
+      if Ah#(k,k) < -tol then (err = k+1; break;);
+      if abs(Ah#(k,k))<=tol then 
+          if any(0..n-1, i->abs(Ah#(i,k))>tol) then (
+               err = k+1; break;);
 
       -- Perform LDL factorization step:
       if Ah#(k,k) > 0 then (
-                 scan(0..k-1, i -> v#i = Ah#(k,i)*Ah#(i,i));
-           Ah#(k,k) = Ah#(k,k) - sum apply(toList(0..k-1), i -> Ah#(k,i)*v#i);
-           if Ah#(k,k) < 0 then (err = k+1; break;);
-           if Ah#(k,k) > 0 then (
-            scan(k+1..n-1, i ->
-             (Ah#(i,k) = (Ah#(i,k)-sum apply(toList(0..k-1),j->Ah#(i,j)*v#j))
-             / Ah#(k,k);))
-                   );
+                 for i to k-1 do (v#i = Ah#(k,i)*Ah#(i,i));
+           Ah#(k,k) = Ah#(k,k) - sum for i to k-1 list Ah#(k,i)*v#i;
+           if Ah#(k,k) < -tol then (err = k+1; break;);
+           if Ah#(k,k) > 0 then
+             for i from k+1 to n-1 do
+                 Ah#(i,k) = (Ah#(i,k)-sum for j to k-1 list Ah#(i,j)*v#j) / Ah#(k,k);
       );
      );
 
@@ -1375,17 +1375,17 @@ TEST /// --sosdec
     mon=matrix{{x^3},{x^2*z},{y*z^2}}
     f=sosdec(Q,mon)
     assert(sumSOS f==transpose mon * Q *mon)
+    -- boundary cases:
+    assert( sosdec(  ,mon) === (,) )
+    assert( sosdec(Q ,   ) === (,) )
 ///
 
-TEST /// --solveSOS and sosdec (good cases)
+TEST /// --solveSOS (good cases)
     R = QQ[x,y];
     f = 4*x^4+y^4;
     (Q,mon,X) = solveSOS f
     a = sosdec(Q,mon)
     assert( f == sumSOS a )
-    -- boundary cases:
-    assert( sosdec(  ,mon) === (,) )
-    assert( sosdec(Q ,   ) === (,) )
 
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
     (Q,mon,X) = solveSOS f
@@ -1442,15 +1442,19 @@ TEST /// --LDLdecomposition
 --  Simple example
     A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
     (L,D,P,err) = LDLdecomposition A
-    assert(L*D*transpose L == transpose P * A * P)
+    assert(err==0 and L*D*transpose L == transpose P * A * P)
     (L,D,P,err) = LDLdecomposition promote(A,RR)
-    assert(L*D*transpose L == transpose P * A * P)
+    assert(err==0 and L*D*transpose L == transpose P * A * P)
     
 --  Random low-rank matrix
     V = random(QQ^12,QQ^8)
     A = V * transpose V 
     (L,D,P,err) = LDLdecomposition(A)
-    assert(L*D*transpose L == transpose P * A * P)
+    assert(err==0 and L*D*transpose L == transpose P * A * P)
+    V = random(RR^12,RR^8)
+    A = V * transpose V 
+    (L,D,P,err) = LDLdecomposition(A)
+    assert(err==0 and norm(L*D*transpose L - transpose P * A * P) < 1e-6)
 ///
 
 TEST ///--genericCombination
