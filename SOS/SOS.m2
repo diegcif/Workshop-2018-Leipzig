@@ -1275,35 +1275,39 @@ checkSosInIdeal = solver -> (
     local x; x= symbol x;
     local y; y= symbol y;
     local z; z= symbol z;
-    inIdealQQ := (s,h) -> (sumSOS(s) % ideal h) == 0;
-    inIdealRR := (s,h) -> norm(sumSOS(s) % sub(ideal h, ring s)) < 1e-8;
+    inIdeal := (s,h) -> (
+        if s === null then return false;
+        S := ring s;
+        if coefficientRing S===QQ then
+            return (sumSOS(s) % ideal h) == 0;
+        return norm(sumSOS(s) % sub(ideal h, S)) < 1e-8;
+        );
 
     -- Test 0
     R:= QQ[x];
     h:= {x+1};
     (s,mult) := sosInIdeal (h,4, Solver=>solver);
-    t0 := s=!=null and inIdealQQ(s,h);
+    t0 := inIdeal(s,h);
     
     -- Test 1 (same as test 0 but with real input)
     R= RR[x];
     h= {x+1};
     (s,mult) = sosInIdeal (h,4, Solver=>solver);
-    t1 := s=!=null and inIdealRR(s,h);
+    t1 := inIdeal(s,h);
     
-    -- Test 2:
+    -- Test 2 (same as test 0 but with degree two)
+    R= QQ[x];
+    h= {x+1};
+    (s,mult) = sosInIdeal (h,2, Solver=>solver);
+    t2 := inIdeal(s,h);
+
+    -- Test 3:
     R = QQ[x,y,z];
     h = {x-y, x+z};
     (s,mult) = sosInIdeal (h,6, Solver=>solver);
-    -- The result might be returned with real or rational
-    -- Depending on rounding success or failure:
-    local t2;
-    if s===null then t2 = false else 
-    if class coefficientRing ring s === RealField then 
-      t2 = inIdealRR(s,h)
-    else
-      t2 = inIdealQQ(s,h);
+    t3 := inIdeal(s,h);
 
-    results := {t0,t1, t2};
+    results := {t0,t1,t2,t3};
     informAboutTests (results);
     return results
     )
