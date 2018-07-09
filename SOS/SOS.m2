@@ -504,7 +504,7 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      ndim := numRows Q;
 
      verbose("Rounding precision: " | d, o);
-     Q0 := matrix pack (apply(flatten entries Q, i -> round(i*2^d)/2^d),ndim);
+     Q0 := matrix pack (apply(flatten entries Q, i -> round ((i*2^d)/2^d)),ndim);
      x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
      t := timing (xp := project2linspace(A,b,x0););
      verbose("Time needed for projection: " | net t#0, o);
