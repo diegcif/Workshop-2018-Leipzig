@@ -162,9 +162,12 @@ verbose = (s,o) -> if o.Verbose then print s
 --###################################
 
 sosdec = (Q,mon) -> (
-    if mon===null or Q===null then return (,);
+    if mon===null or Q===null then return;
     (L,D,P,err) := PSDdecomposition(Q);
-    if err != 0 then error ("Gram Matrix is not positive semidefinite");
+    if err != 0 then (
+        print "Gram Matrix is not positive semidefinite";
+        return 
+        );
     n := numRows Q;
     g := toList flatten entries (transpose mon * transpose inverse P * L);
     d := for i to n-1 list D_(i,i);
@@ -644,6 +647,10 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
         return (null,null);
 	);
     a := sosdec(Q,mon);
+    if a===null then (
+        print("no sos polynomial in degree "|D);
+        return (null,null);
+	);
     S := ring h#0;
     kk := ring Q;
     if kk =!= coefficientRing S then
@@ -680,6 +687,7 @@ sosdecTernary(RingElement) := o -> (f) -> (
     (Q,mon,X) := solveSOS fi;
     if Q===null then return;
     Si = sosdec(Q,mon);
+    if Si===null then return;
     S = append(S,Si);
     nums := for i to #S-1 list if odd i then continue else S#i;
     dens := for i to #S-1 list if even i then continue else S#i;
@@ -1042,6 +1050,7 @@ solveSDPA(Matrix,Sequence,Matrix) := o -> (C,A,b) -> (
     print("Executing SDPA on file " | fin);
     r := run(sdpaexec | " " | fin | " " | fout | "> /dev/null");
     if r == 32512 then error "sdpa executable not found";
+    if r == 11 then error "Segmentation fault running sdpa.";
     print("Output saved on file " | fout);
     (y,X,Z) := readSDPA(fout,n,o.Verbose);
     return (y,X,Z);
@@ -1199,24 +1208,24 @@ checkSolveSOS = solver -> (
     f := 4*x^4+y^4;
     (Q,mon,X) := solveSOS(f,Solver=>solver);
     a := sosdec(Q,mon);
-    t0 := ( f == sumSOS a );
+    t0 := a=!=null and ( f == sumSOS a );
 
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
     (Q,mon,X) = solveSOS(f,Solver=>solver);
     a = sosdec(Q,mon);
-    t1 := ( f == sumSOS a );
+    t1 := a=!=null and ( f == sumSOS a );
 
     R = QQ[x,y,z];
     f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
     (Q,mon,X) = solveSOS(f,Solver=>solver);
     a = sosdec(Q,mon);
-    t2 := ( f == sumSOS a );
+    t2 := a=!=null and ( f == sumSOS a );
     
     R = QQ[x,y,z,w];
     f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
     (Q,mon,X) = solveSOS(f,Solver=>solver);
     a = sosdec(Q,mon);
-    t3 := ( f == sumSOS a );
+    t3 := a=!=null and ( f == sumSOS a );
 
     R = QQ[x,z,t];
     f = x^4+x^2+z^6-3*x^2*z^2-t;
@@ -1441,10 +1450,10 @@ TEST /// --sosdec
     Q=promote(Q,QQ)
     mon=matrix{{x^3},{x^2*z},{y*z^2}}
     f=sosdec(Q,mon)
-    assert(sumSOS f==transpose mon * Q *mon)
+    assert(f=!=null and sumSOS f==transpose mon * Q *mon)
     -- boundary cases:
-    assert( sosdec(  ,mon) === (,) )
-    assert( sosdec(Q ,   ) === (,) )
+    assert( sosdec(  ,mon) === null )
+    assert( sosdec(Q ,   ) === null )
 ///
 
 TEST /// --choosemonp
