@@ -34,7 +34,6 @@ export {
     "LDLdecomposition",
     "solveSDP",
     "genericCombination",
-    "cleanSOS",
     "sosInIdeal",
     "lowerBound",
     "lasserreHierarchy",
@@ -142,8 +141,7 @@ sumSOS (List, List) := (g,d) -> sum for i to #g-1 list g_i^2 * d_i
 
 sumSOS SOSPoly := a -> sum for i to #(a#gens)-1 list a#gens_i^2 * a#coefficients_i
 
-cleanSOS = method()
-cleanSOS(SOSPoly,Number) := (s,tol) -> (
+clean(RR,SOSPoly) := (tol,s) -> (
     if s===null then return (,);
     R := ring s;
     if coefficientRing R === QQ then tol=0;
@@ -1399,13 +1397,13 @@ TEST /// --SOSmult
 TEST /// --cleanSOS
     R = RR[x,y];
     s = sosPoly(R, {x+1,y}, {2,0.0001})
-    t1 = cleanSOS( s, 0.001 )
+    t1 = clean( 0.001, s )
     t2 = sosPoly(R, {x+1}, {2})
     assert (t1 == t2)
     
     R = QQ[x,y];
     s = sosPoly(R, {x+1,y}, {2,1/100000})
-    t = cleanSOS( s, 0.001 )
+    t = clean( 0.001, s )
     assert (t == s)
 ///
 
@@ -1509,17 +1507,17 @@ TEST ///--genericCombination
 ///
 
 TEST /// --solveSDP
-    test := checkSolveSDP("M2")
+    test := checkSolver("M2","solveSDP")
     assert(test#0 and test#1 and test#2) --(test3 fails)
 ///
 
 TEST /// --solveSOS
-    test := checkSolveSOS("M2")
+    test := checkSolver("M2","solveSOS")
     assert(all(test,identity))
 ///
 
 TEST /// --lasserreHierarchy
-    test := checkLasserreHierarchy ("M2")
+    test := checkSolver ("M2","lasserreHierarchy")
     -- lasserreHierarchy fails with the default solver
     -- assert (test#0 and test#1)
 ///

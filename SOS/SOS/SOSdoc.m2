@@ -103,16 +103,15 @@ doc /// --SOSPoly
 
 doc /// --cleanSOS
     Key
-        cleanSOS
-	(cleanSOS,SOSPoly,Number)
+        (clean,RR,SOSPoly)
     Headline
         Remove terms with very small coefficients from a sum of squares.
     Usage
-        cleanSOS (s, tol)
+        clean (tol, s)
     Inputs
-        s:SOSPoly
-	tol:Number
-	  the tolerance for the coefficients.
+	  tol:RR
+	    the tolerance for the coefficients.
+      s:SOSPoly
     Outputs
         :SOSPoly
           a cleaned up @TO SOSPoly@
@@ -126,7 +125,7 @@ doc /// --cleanSOS
       Example
         R = RR[x,y];
         s = sosPoly(R, {x+1,y}, {2,0.0001})
-        cleanSOS( s, 0.001 )
+        clean( 0.001, s )
       Code
       Pre
     SeeAlso
