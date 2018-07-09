@@ -396,7 +396,7 @@ doc /// --createSOSModel
         Ai:Sequence
         Bi:Sequence
         A:Matrix
-        B:Sequence
+        B:Matrix
         b:Matrix
         mon:Matrix
         GramIndex:HashTable
@@ -406,16 +406,20 @@ doc /// --createSOSModel
       Text
         This method creates the kernel and image model of the Gram matrices of a polynomial $f$.
 
-        A Gram matrix representation of $f$ is a symmetric matrix X such that
-        $f = mon' X mon$,
+        A Gram matrix representation of $f$ is a symmetric matrix $Q$ such that
+        $f = mon' Q mon$,
         where $mon$ is a vector of monomials.
-        The set of all Gram matrices $X$ is an affine subspace.
-        This affine subspace can be described in image form as
-        $X = C - \sum_i y_i A_i$
-        where $y_i$ are free parameters,
+        The set of all Gram matrices $Q$ is an affine subspace.
+        This subspace can be described in image form as
+        $Q = C - \sum_i y_i A_i$,
         or in kernel form as
-        $A x = b$
-        where $x_i = X_{GramIndex#i}$.
+        $A q = b$
+        where $q_i = Q_{GramIndex#i}$.
+
+        If a vector of parameters $p$ is given, then the image form is
+        $Q = C - \sum_i y_i A_i - \sum_j p_j B_j$,
+        and the kernel form is
+        $A q + B p = b$.
       Code
       Pre
     SeeAlso
@@ -500,18 +504,18 @@ doc /// --solveSDP
         (y,X,Q) = solveSDP(C,A,b,y0)
     Inputs
         C:Matrix
-          a symmetric $n\times n$ matrix over $\RR$
+          a symmetric $n\times n$ matrix
         A:Sequence
-          consisting of $m$ symmetric $n\times n$ matrices over $\RR$
+          consisting of $m$ symmetric $n\times n$ matrices
         y0:Matrix
-          an $m\times 1$ matrix over $\RR$ (optional)
+          an $m\times 1$ matrix (optional)
     Outputs
         y:
           an $m\times 1$ matrix, primal variable
         X:
           an $n\times n$ matrix, dual variable (not available if Solver=>"M2")
         Q:
-          an $n\times n$ matrix, primal variable (not available if Solver=>"M2")
+          an $n\times n$ matrix, primal variable
     Consequences
     Description
       Text
@@ -609,7 +613,7 @@ doc /// --sosInIdeal
     Headline
        Sum of squares polynomial in ideal
     Usage
-        p = sosInIdeal(f,d,Solver=>"CSDP")
+        (p,mult) = sosInIdeal(f,d,Solver=>"CSDP")
     Inputs
         f:List
           a list of polynomials
@@ -617,6 +621,8 @@ doc /// --sosInIdeal
           positive integer greater than the degrees of polynomials in the list f.
     Outputs
         p:SOSPoly
+        mult:List
+          of polynomial multipliers
     Consequences
     Description
       Text
