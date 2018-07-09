@@ -177,7 +177,7 @@ sosdec = (Q,mon) -> (
 -- This is the main method to decompose a polynomial as a 
 -- sum of squares using an SDP solver.
 solveSOS = method(
-     Options => {RndTol => -3, Solver=>"M2", Verbose => false, TraceObj => false} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false} )
  
 solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     -- f is a polynomial to decompose
@@ -504,7 +504,7 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      ndim := numRows Q;
 
      verbose("Rounding precision: " | d, o);
-     Q0 := matrix pack (apply(flatten entries Q, i -> round ((i*2^d)/2^d)),ndim);
+     Q0 := matrix pack (apply(flatten entries Q, i -> round(i*2^d)/2^d),ndim);
      x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
      t := timing (xp := project2linspace(A,b,x0););
      verbose("Time needed for projection: " | net t#0, o);
@@ -626,7 +626,7 @@ genericCombination = (h, D, homog) -> (
     )
 
 sosInIdeal = method(
-     Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
+     Options => {RndTol => 3, Solver=>"CSDP", Verbose => false} )
 sosInIdeal(List,ZZ) := o -> (h,D) -> (
     -- h is a list of polynomials
     -- D is a degree bound
@@ -660,7 +660,7 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
     )
 
 sosdecTernary = method(
-     Options => {RndTol => -3, Solver=>"CSDP", Verbose => false} )
+     Options => {RndTol => 3, Solver=>"CSDP", Verbose => false} )
 sosdecTernary(RingElement) := o -> (f) -> (
     -- Implements Hilbert's algorithm to write a non-negative ternary
     -- form as sos of rational functions.
@@ -703,7 +703,7 @@ rank1factor(Matrix) := o -> (X) -> (
     )
 
 lowerBound = method(
-     Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
 
 lowerBound(RingElement,List) := o -> (f,pars) -> (
     -- sos lower bound for the polynomial f
@@ -734,7 +734,7 @@ lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},o)
 
 -- Minimize a polynomial on an algebraic set using SDP relaxations:
 lasserreHierarchy = method(
-     Options => {RndTol => -3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
 lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
     -- Lasserre hierarchy for the problem
     -- min f(x) s.t. h(x)=0
