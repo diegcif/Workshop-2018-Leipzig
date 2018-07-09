@@ -47,6 +47,7 @@ export {
     "changeRingField",
     "changePolyField",
     "changeMatrixField",
+    "primalDualNonzero",
 --Method options
     "RndTol",
     "UntilObjNegative",
@@ -235,12 +236,15 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     );
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (Q,mon,X,);
+    -- Check for a solution withe one zero matrix
+    (X,Q) = primalDualNonzero (X,Q);
+    1/0;
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
 
-    if kk=!=QQ then
-        return (Q,sub(mon,R0),X,pvec0);
+    if kk=!=QQ then (
+        return (Q,sub(mon,R0),X,pvec0));
     if o.RndTol==infinity then
         return (Q,changeMatrixField(RR,mon),X,pvec0);
 
@@ -324,7 +328,7 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndT
     dhi := 52;
     d := RndTol;
     np := numColumns B;
-    
+
     while (d < dhi) do (
         verbose("rounding step #" | d, o);
         if np!=0 then (
@@ -501,20 +505,22 @@ project2linspace = (A,b,x0) -> (
      )
 
 roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
-     ndim := numRows Q;
+    -- 	This function tries to round a matrix Q to a PSD matrix that
+    -- 	satisfies the affine constraints AQ = b.
+    ndim := numRows Q;
 
-     verbose("Rounding precision: " | d, o);
-     Q0 := matrix pack (apply(flatten entries Q, i -> round(i*2^d)/2^d),ndim);
-     x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
-     t := timing (xp := project2linspace(A,b,x0););
-     verbose("Time needed for projection: " | net t#0, o);
-     Q = map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then xp_(LinSpaceIndex#{i+1,j+1},0) 
-           else xp_(LinSpaceIndex#{j+1,i+1},0));
+    verbose("Rounding precision: " | d, o);
+    Q0 := matrix pack (apply(flatten entries Q, i -> round(i*2^d)/2^d),ndim);
+    x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
+    t := timing (xp := project2linspace(A,b,x0););
+    verbose("Time needed for projection: " | net t#0, o);
+    Q = map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then xp_(LinSpaceIndex#{i+1,j+1},0)
+	else xp_(LinSpaceIndex#{j+1,i+1},0));
 
-     t = timing((L,D,P,Qpsd) := PSDdecomposition(Q););
-     verbose("Time needed for LDL decomposition: " | net t#0, o);
-     if Qpsd == 0 then (true, Q) else (false,Q)
-     )
+    t = timing((L,D,P,Qpsd) := PSDdecomposition(Q););
+    verbose("Time needed for LDL decomposition: " | net t#0, o);
+    if Qpsd == 0 then (true, Q) else (false,Q)
+    )
 
 PSDdecomposition = (A) -> (
     kk := ring A;
@@ -1084,6 +1090,43 @@ readSDPA = (fout,n,Verbose) -> (
     return (y,X,Z);
     )
 
+
+primalDualNonzero = (X,Z) -> (
+    -- Some solvers can return a zero solution or zero dual solution,
+    -- in the success case.  The zero solution leads to problems in
+    -- the rest of the code.  Therefore we replace it with a rank one
+    -- solution using the complementarity relation XZ = 0.
+    
+    -- Work around https://github.com/Macaulay2/M2/issues/829 using a new ring
+    kk := ring X;
+    x := symbol x;
+    R := kk[x];
+    local X2;
+    local Z2;
+    
+    if class kk === RealField then(
+    	X2 = sub (X,R);
+    	Z2 = sub (Z,R))
+    else (X2,Z2) = (X,Z);
+
+    nx := norm X2;
+    nz := norm Z2;
+
+    if nx > 1e-9 and nz > 1e-9 then return (X,Z);
+    
+    assert (norm (X2*Z2) < 1e-9);
+    if nz < 1e-9 then(
+        v := (gens ker X2)^1;
+	Z2 = v ** transpose v;
+	);
+    if nx < 1e-9 then(
+	w := (gens ker transpose Z2)^1;
+	X2 = transpose w ** w;
+	);
+    -- Now back to kk:
+    (lift_X2 kk, lift_Z2 kk)
+    )
+
 --###################################
 -- Methods for testing
 --###################################
@@ -1504,6 +1547,19 @@ TEST ///--genericCombination
     f1' = sub (f1, ring multh#0)
     f2' = sub (f2, ring multh#0)
     assert (multh#0*f1' + multh#1*f2' == fh)
+///
+
+TEST ///--primalDualNonzero
+    X = matrix {{1_RR,1},{2,2}}
+    Z = matrix {{0,0_RR},{0,0}}
+    (X,Z) = primalDualNonzero (X,Z);
+    assert (X*Z == 0)
+    assert (norm Z > 0.01);
+    Z = matrix {{1_RR,1},{2,2}}
+    X = matrix {{0,0_RR},{0,0}}
+    (X,Z) = primalDualNonzero (X,Z);
+    assert (X*Z == 0)
+    assert (norm X > 0.01);
 ///
 
 TEST /// --solveSDP
