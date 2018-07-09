@@ -167,7 +167,7 @@ sosdec = (Q,mon) -> (
     if err != 0 then error ("Gram Matrix is not positive semidefinite");
     n := numRows Q;
     g := toList flatten entries (transpose mon * transpose inverse P * L);
-    d := apply(toList(0..n-1),i->D_(i,i));
+    d := for i to n-1 list D_(i,i);
     idx := positions (d, i->i!=0);
     d = d_idx;
     g = g_idx;
@@ -213,16 +213,15 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         -- compute an optimal solution --
         verbose("Solving SOS optimization problem...", o);
         (objMon,objCoef) := coefficients objFcn;
-        objP := transpose matrix {apply(p,
-            i->sub(-coefficient(i,objFcn),QQ))};
+        objP := map(QQ^#p,QQ^1, (i,j) -> -coefficient(p_i, objFcn));
         obj := objP || map(QQ^#Ai,QQ^1,i->0);
         
         if parBounded then (
             C = blkDiag(C,diagonalMatrix(-lB),diagonalMatrix(uB));
-            Ai = apply(0..#Ai-1,i -> blkDiag(Ai_i, map(QQ^(2*#p), QQ^(2*#p), j -> 0)));
-            Bi = apply(0..#Bi-1,i -> blkDiag(Bi_i, 
+            Ai = for i to #Ai-1 list blkDiag(Ai_i, map(QQ^(2*#p), QQ^(2*#p), j -> 0));
+            Bi = for i to #Bi-1 list blkDiag(Bi_i, 
                 map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then 1_QQ else 0_QQ),
-                map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then -1_QQ else 0_QQ)));
+                map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then -1_QQ else 0_QQ));
         );
     )else if o.TraceObj then (
         -- compute an optimal solution --
@@ -465,7 +464,7 @@ choosemonp = {Verbose=>false} >> o -> (f,p) -> (
          );
 
      -- Get candidate points from basis of f:
-     mon := flatten apply( toList(mindeg..maxdeg), k -> flatten entries basis(k, ringf));
+     mon := flatten for k from mindeg to maxdeg list flatten entries basis(k, ringf);
      cp := apply (mon, i -> flatten exponents (i));
      verbose("#candidate points: " | #cp, o);
 
@@ -480,10 +479,11 @@ choosemonp = {Verbose=>false} >> o -> (f,p) -> (
      -- Find points within the polytope:
      lexponents := select(cpf2, i-> 
            max flatten entries (dualpolytope * ((T * transpose matrix {i-shift})||1)) <=0)/2;
-     lmSOS := apply(lexponents, i-> product(n,j->(
-        assert (denominator i#j==1);
-         (ring f)_(genpos#j)^(numerator i#j)
-         )));
+     lmSOS := for i in lexponents list
+         product(n, j->(
+            assert (denominator i#j==1);
+            (ring f)_(genpos#j)^(numerator i#j) 
+            ));
      verbose("#points inside Newton polytope: " | #lmSOS, o);
 
      return (lmf,lmSOS);
@@ -504,7 +504,7 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
      ndim := numRows Q;
 
      verbose("Rounding precision: " | d, o);
-     Q0 := matrix pack (apply(flatten entries Q, i -> round(i*2^d)/2^d),ndim);
+     Q0 := matrix (applyTable (entries Q, i -> round(i*2^d)/2^d) );
      x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
      t := timing (xp := project2linspace(A,b,x0););
      verbose("Time needed for projection: " | net t#0, o);
@@ -892,7 +892,7 @@ simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
             try dy := -g//H else (
                 print "Newton step has no solution";
                 return (,) );
-            alpha := backtrack(S, -sum toList apply(0..m-1, i -> matrix(dy_(i,0) * entries A_i)));
+            alpha := backtrack(S, -sum for i to m-1 list matrix(dy_(i,0) * entries A_i));
             if alpha===null then return (,);
             y = y + transpose matrix {alpha* (flatten entries dy)};
             lambda := (transpose dy*H*dy)_(0,0);
