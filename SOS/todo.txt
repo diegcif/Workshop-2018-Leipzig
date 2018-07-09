@@ -60,13 +60,6 @@ Known bugs:
 
 2') sosInIdeal({(x+1)^2},2) also fails
 
-3) Code in bugs/lowerBoundTwoVariate.m2 cannot handle that "SDP
-failed".  Also: Why does the SDP fail?
-
-TK: Actually both solvers fail on this example.  CSDP reports
-something about being stuck on an edge of the feasible region.  The
-problem is probably ill-conditioned.
-
 4) Numerators in bugs/sosdecTernaryHarris.m2 lie in different rings
 
 5) In the first test of lasserreHierarchy it sometimes happens that
@@ -106,8 +99,7 @@ Methods whose documentation needs improvement
 1) The randomness of the SDP solvers is a severe problem, for example
 for the tests.  If a routine fails 1 out of 10 times, how should it be
     diego: ideally we should only export cases tha are reliable,
-        at least with CSDP
-tested?
+        at least with CSDP tested?
 
 2) The function sosInIdeal is worthless if it can't even solve
     R = QQ[x,y,z];
@@ -128,6 +120,16 @@ tested?
    diego: my plan was to not export it. It's exported now for debugging purposes.
 
 5) LDLdecomposition fails for {{1, -1, 1}, {-1, 1, 1}, {1, 1, 1}}
+
+6) The following example only works with SDPA, but not M2 and not
+   CSDP.  Can we do anything about it?
+   needsPackage ("SOS" , Configuration => { "CSDPexec" => "CSDP/csdp", "SDPAexec"=>"./sdpa"})
+   R = QQ[x,y]
+   f = (x-y)^2 + x^2 + (y-4)^2;
+   (bound, sol) = lowerBound(f, Solver=>"SDPA");
+   -- the minimum is 16/3.
+   result = (abs (16/3-bound) < 0.1)
+
 
 #########################
 ######### PAPER #########
