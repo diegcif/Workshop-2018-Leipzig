@@ -1208,41 +1208,54 @@ checkSolveSOS = solver -> (
     local w; w= symbol w;
     local t; t= symbol t;
     local tval;
-    ---------------TEST0---------------
-    --good cases
+    isGram := (f,Q,mon) -> (
+        if Q===null then return false;
+        e := eigenvalues(Q,Hermitian=>true);
+        tol := 1e-8;
+        if min e < -tol then return false;
+        S := ring mon;
+        if coefficientRing S===QQ then
+            return f == transpose(mon)*Q*mon;
+        return norm(sub(f,S) - transpose(mon)*Q*mon) < tol;
+        );
+    ---------------GOOD CASES1---------------
+    -- Test 0
     R := QQ[x,y];
     f := 4*x^4+y^4;
     (Q,mon,X) := solveSOS(f,Solver=>solver);
-    a := sosdec(Q,mon);
-    t0 := a=!=null and ( f == sumSOS a );
+    t0 := isGram(f,Q,mon);
 
+    -- Test 1
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
     (Q,mon,X) = solveSOS(f,Solver=>solver);
-    a = sosdec(Q,mon);
-    t1 := a=!=null and ( f == sumSOS a );
+    t1 := isGram(f,Q,mon);
 
+    -- Test 2
     R = QQ[x,y,z];
     f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
     (Q,mon,X) = solveSOS(f,Solver=>solver);
-    a = sosdec(Q,mon);
-    t2 := a=!=null and ( f == sumSOS a );
+    t2 := isGram(f,Q,mon);
     
+    -- Test 3
     R = QQ[x,y,z,w];
     f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
     (Q,mon,X) = solveSOS(f,Solver=>solver);
-    a = sosdec(Q,mon);
-    t3 := a=!=null and ( f == sumSOS a );
+    t3 := isGram(f,Q,mon);
 
+    -- Test 4
     R = QQ[x,z,t];
     f = x^4+x^2+z^6-3*x^2*z^2-t;
     (Q,mon,X,tval) = solveSOS (f,{t},-t,RndTol=>12,Solver=>solver);
-    t4 := ( tval#0 == -729/4096 ) and ( sub(f,t=>tval#0) == transpose(mon)*Q*mon );
+    t4 := ( tval#0 === -729/4096 ) and ( sub(f,t=>tval#0) == transpose(mon)*Q*mon );
 
-    --bad cases
+    ---------------BAD CASES1---------------
+    -- Test 5
     R = QQ[x,y,t];
     f = x^4*y^2 + x^2*y^4 - 3*x^2*y^2 + 1; --Motzkin
     (Q,mon,X) = solveSOS(f,Solver=>solver); 
     t5 := ( Q === null );
+
+    -- Test 6
     (Q,mon,X,tval) = solveSOS(f-t,{t},-t, Solver=>solver); 
     t6 := ( Q === null );
 
