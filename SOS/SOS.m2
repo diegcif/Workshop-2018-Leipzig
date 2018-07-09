@@ -788,6 +788,12 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
         (y,X,Z) = solveSDPA(C,A,b,Verbose=>o.Verbose)
     else
         error "unknown SDP solver";
+    if C==0 and b==0 and y==0 then(
+        print "Zero solution obtained. Trying one more time.";
+        b' := random(RR^(numRows b),RR^1);
+        (y',X',Z') := solveSDP(C,A,b',o);
+        if y'=!=null and norm(y')>1e-6 then (y,Z) = (y',Z');
+        );
     return (y,X,Z);
 )
 

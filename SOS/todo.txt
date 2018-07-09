@@ -56,10 +56,6 @@ NOTE: All methods must be tested with inputs over QQ and over RR.
 
 Known bugs:
 
-2) sosInIdeal({x+1},2) fails over QQ[x], but works over QQ[x,y]
-
-2') sosInIdeal({(x+1)^2},2) also fails
-
 4) Numerators in bugs/sosdecTernaryHarris.m2 lie in different rings
 
 5) In the first test of lasserreHierarchy it sometimes happens that
