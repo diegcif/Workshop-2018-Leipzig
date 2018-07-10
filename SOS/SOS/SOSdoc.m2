@@ -712,16 +712,16 @@ doc /// --checkSolver
         tests an SDP solver
     Usage
         checkSolver(solver)
-        checkSolver(solver,function)
+        checkSolver(solver,fun)
     Inputs
         solver:String
           either "M2" or "CSDP" or "SDPA"
-        function:String
+        fun:Function
           (optional)
     Consequences
     Description
       Text
-        This function tests that a function works works properly using a specified solver.
+        This method tests that a function works works properly using a specified solver.
       Code
       Pre
     SeeAlso

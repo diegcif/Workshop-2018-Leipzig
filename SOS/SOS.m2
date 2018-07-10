@@ -351,14 +351,14 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
     if #lm==0 then return (,,,,,,lm,,);
     
     -- This is a hash table that maps monomials into pairs of indices
-    Hm := hashTable for i to #lm-1 list lm#i => i+1;
-    HHHm := combine(Hm,Hm,times,(j,k)-> if j>=k then {{j,k}} else {} , join );
-    K := keys HHHm;
-    V := flatten values HHHm;
+    Hm := hashTable for i to #lm-1 list lm#i => i;
+    Hm2 := combine(Hm,Hm,times,(j,k)-> if j>=k then {(j,k)} else {} , join );
+    K := keys Hm2;
+    V := flatten values Hm2;
 
     -- Writes the matrix, in sparse form
     ndim := #lm; -- binomial(n+d,d);
-    mdim := #HHHm; --binomial(n+2*d,2*d);
+    mdim := #Hm2; --binomial(n+2*d,2*d);
     
     -- A hash table with the coefficients (should be an easier way)
     (mf,cf) := coefficients f ;
@@ -375,7 +375,7 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
 
     Ah := flatten for k to #K-1 list (
         -- Set constraints for monomial K#k 
-        PairsEntries := HHHm#(K#k) ;
+        PairsEntries := Hm2#(K#k) ;
       	for e in PairsEntries list (
             l := LinSpaceIndex#e;
             v := if e_0 == e_1 then 1_QQ else 2_QQ;
@@ -392,31 +392,32 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
         );
     B := map(QQ^#K,QQ^#p,Bh);
 
-    (C,Ai,Bi) := getImageModel(A,B,b,#p,ndim,LinSpaceIndex);
+    (C,Ai,Bi) := getImageModel(A,B,b,ndim,LinSpaceIndex);
 
     return (C,Ai,Bi,A,B,b,transpose matrix {lm},GramIndex,LinSpaceIndex);
     )
 
-getImageModel = (A,B,b,np,ndim,LinSpaceIndex) -> (
+getImageModel = (A,B,b,ndim,LinSpaceIndex) -> (
     -- compute the C matrix
     c := b//A;
-    C := map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then c_(LinSpaceIndex#{i+1,j+1},0)
-      	else c_(LinSpaceIndex#{j+1,i+1},0));
+    C := map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then c_(LinSpaceIndex#(i,j),0)
+      	else c_(LinSpaceIndex#(j,i),0));
     -- compute the B_i matrices
+    np := numColumns B;
     if np!=0 then (
         bi := -B//A;
         Bi := toSequence for k to np-1 list
             map(QQ^ndim,QQ^ndim, (i,j) -> 
-                if i>=j then bi_(LinSpaceIndex#{i+1,j+1},k)
-                else bi_(LinSpaceIndex#{j+1,i+1},k));
+                if i>=j then bi_(LinSpaceIndex#(i,j),k)
+                else bi_(LinSpaceIndex#(j,i),k));
     )else Bi = ();
     -- compute the A_i matrices     
     v := - generators kernel A;
 
     Ai := toSequence for k to (rank v)-1 list
         map(QQ^ndim,QQ^ndim, (i,j) -> 
-            if i>=j then v_(LinSpaceIndex#{i+1,j+1},k) 
-            else v_(LinSpaceIndex#{j+1,i+1},k)); 
+            if i>=j then v_(LinSpaceIndex#(i,j),k) 
+            else v_(LinSpaceIndex#(j,i),k)); 
 
     return (C,Ai,Bi);
     )
@@ -508,11 +509,11 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
 
      verbose("Rounding precision: " | d, o);
      Q0 := matrix (applyTable (entries Q, i -> round(i*2^d)/2^d) );
-     x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(toSequence (GramIndex#i-{1,1})))}};
+     x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(GramIndex#i))}};
      t := timing (xp := project2linspace(A,b,x0););
      verbose("Time needed for projection: " | net t#0, o);
-     Q = map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then xp_(LinSpaceIndex#{i+1,j+1},0) 
-           else xp_(LinSpaceIndex#{j+1,i+1},0));
+     Q = map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then xp_(LinSpaceIndex#(i,j),0) 
+           else xp_(LinSpaceIndex#(j,i),0));
 
      t = timing((L,D,P,Qpsd) := PSDdecomposition(Q););
      verbose("Time needed for LDL decomposition: " | net t#0, o);
