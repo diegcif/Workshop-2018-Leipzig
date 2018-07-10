@@ -1116,19 +1116,24 @@ checkSolver(String,String) := (solver,fun) -> (
         return checkMethod#fun(solver);
     if fun != "AllMethods" then
         error "No test implemented for this function";
-    for f in keys checkMethod do(
+    T := for f in keys checkMethod list(
         print "################################";
         print("checking method "|f);
         print "################################";
-        checkMethod#f(solver);
+        t := checkMethod#f(solver);
+        {f, testsString t}
         );
+    print "################################";
+    print("Summary");
+    print netList T;
     )
 checkSolver(String,Function) := (solver,fun) -> checkSolver(solver,toString fun)
 checkSolver(String) := (solver) -> checkSolver(solver,"AllMethods")
 
 -- A method to inform about the results of the tests in one function
+testsString = t -> concatenate apply(t, i -> if i then " ✓ " else " ✘ ")
 informAboutTests = t -> (
-    for i to #t-1 do if not t#i then print("test"|i|" failed");
+    print("Test Results: " | testsString t);
     )
 
 --checkSolveSDP
