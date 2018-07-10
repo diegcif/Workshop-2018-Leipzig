@@ -400,26 +400,31 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
 getImageModel = (A,B,b,ndim,LinSpaceIndex) -> (
     -- compute the C matrix
     c := b//A;
-    C := map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then c_(LinSpaceIndex#(i,j),0)
-      	else c_(LinSpaceIndex#(j,i),0));
+    C := vec2smat(c,ndim,LinSpaceIndex);
     -- compute the B_i matrices
     np := numColumns B;
     if np!=0 then (
         bi := -B//A;
         Bi := toSequence for k to np-1 list
-            map(QQ^ndim,QQ^ndim, (i,j) -> 
-                if i>=j then bi_(LinSpaceIndex#(i,j),k)
-                else bi_(LinSpaceIndex#(j,i),k));
+            vec2smat(bi_{k},ndim,LinSpaceIndex);
     )else Bi = ();
     -- compute the A_i matrices     
     v := - generators kernel A;
 
     Ai := toSequence for k to (rank v)-1 list
-        map(QQ^ndim,QQ^ndim, (i,j) -> 
-            if i>=j then v_(LinSpaceIndex#(i,j),k) 
-            else v_(LinSpaceIndex#(j,i),k)); 
+        vec2smat(v_{k},ndim,LinSpaceIndex);
 
     return (C,Ai,Bi);
+    )
+
+vec2smat = (c,ndim,LinSpaceIndex) -> (
+    return map(QQ^ndim,QQ^ndim, (i,j) -> 
+        if i>=j then c_(LinSpaceIndex#(i,j),0)
+      	else c_(LinSpaceIndex#(j,i),0));
+    )
+
+smat2Vec = (Q,Ndim,GramIndex) -> (
+    return matrix for i to Ndim-1 list {Q_(GramIndex#i)};
     )
 
 choosemonp = {Verbose=>false} >> o -> (f,p) -> (
@@ -509,11 +514,10 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
 
      verbose("Rounding precision: " | d, o);
      Q0 := matrix (applyTable (entries Q, i -> round(i*2^d)/2^d) );
-     x0 := transpose matrix {{apply(0..numgens source A-1, i -> Q0_(GramIndex#i))}};
+     x0 := smat2Vec(Q0,numColumns A,GramIndex);
      t := timing (xp := project2linspace(A,b,x0););
      verbose("Time needed for projection: " | net t#0, o);
-     Q = map(QQ^ndim,QQ^ndim, (i,j) -> if i>=j then xp_(LinSpaceIndex#(i,j),0) 
-           else xp_(LinSpaceIndex#(j,i),0));
+     Q = vec2smat(xp,ndim,LinSpaceIndex);
 
      t = timing((L,D,P,Qpsd) := PSDdecomposition(Q););
      verbose("Time needed for LDL decomposition: " | net t#0, o);
