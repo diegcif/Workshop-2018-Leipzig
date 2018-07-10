@@ -39,6 +39,8 @@ export {
     "lasserreHierarchy",
     "roundPSDmatrix",
     "checkSolver",
+    "smat2vec",
+    "vec2smat",
 --only for debugging
     "createSOSModel",
     "choosemonp",
@@ -54,6 +56,7 @@ export {
     "Solver",
     "TraceObj",
     "EigTol",
+    "Scaling",
     "sos"
 }
 
@@ -206,7 +209,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         );
          
     -- build SOS model --     
-    (C,Ai,Bi,A,B,b,mon,GramIndex,LinSpaceIndex) := createSOSModel(f,p,Verbose=>o.Verbose);
+    (C,Ai,Bi,A,B,b,mon) := createSOSModel(f,p,Verbose=>o.Verbose);
     if #mon==0 then return (,mon,,);
 
     ndim := numRows C;
@@ -247,7 +250,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         return (Q,changeMatrixField(RR,mon),X,pvec0);
 
     -- rational rounding --
-    (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,GramIndex,LinSpaceIndex,o.RndTol);
+    (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,o.RndTol);
     if ok then return (Qp,mon,X,pVec);
     print "rounding failed, returning real solution";
     return (Q,changeMatrixField(RR,mon),X,pvec0);
@@ -319,7 +322,7 @@ liftMonomial = (S,f) -> (
     return S_e;
     )
 
-roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndTol) -> (
+roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
     -- round and project --
     Qnum := matrix applyTable(entries Q, a -> round(a*2^52)/2^52);
 
@@ -335,14 +338,16 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,GramIndex,LinSpaceIndex,RndT
            ) 
         else bPar= b;
 
-        (ok,Qp) := roundPSDmatrix(Qnum,A,bPar,d,GramIndex,LinSpaceIndex,Verbose=>o.Verbose);
+        (ok,Qp) := roundPSDmatrix(Qnum,A,bPar,d,Verbose=>o.Verbose);
         if ok then break else d = d + 1;
         );
     pVec = if np!=0 then flatten entries pVec else null;
     return (ok,Qp,pVec);
     )
 
-createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
+createSOSModel = method(
+     Options => {Verbose => false} )
+createSOSModel(RingElement,List) := o -> (f,p) -> (
     -- Degree and number of variables
     n := numgens ring f;
     d := (first degree f)//2;
@@ -351,14 +356,13 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
     if #lm==0 then return (,,,,,,lm,,);
     
     -- This is a hash table that maps monomials into pairs of indices
-    Hm := hashTable for i to #lm-1 list lm#i => i;
-    Hm2 := combine(Hm,Hm,times,(j,k)-> if j>=k then {(j,k)} else {} , join );
-    K := keys Hm2;
-    V := flatten values Hm2;
+    v := matrix {lm};
+    v2 := entries(transpose v* v);
+    K := unique flatten v2;
 
     -- Writes the matrix, in sparse form
     ndim := #lm; -- binomial(n+d,d);
-    mdim := #Hm2; --binomial(n+2*d,2*d);
+    mdim := #K; --binomial(n+2*d,2*d);
     
     -- A hash table with the coefficients (should be an easier way)
     (mf,cf) := coefficients f ;
@@ -367,21 +371,10 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
     -- Linear constraints: b
     b := transpose matrix(QQ,{for k in K list
         if Hf#?k then Hf#k else 0});
-    
-    -- Linear constraints: A, B
-    LinSpaceDim := binomial(ndim+1,2);
-    LinSpaceIndex := hashTable for i to #V-1 list V#i => i;
-    GramIndex := applyPairs (LinSpaceIndex, (i,j)->(j,i));
 
-    Ah := flatten for k to #K-1 list (
-        -- Set constraints for monomial K#k 
-        PairsEntries := Hm2#(K#k) ;
-      	for e in PairsEntries list (
-            l := LinSpaceIndex#e;
-            v := if e_0 == e_1 then 1_QQ else 2_QQ;
-            (k,l) => v )
-        );
-    A := map(QQ^#K,QQ^(LinSpaceDim),Ah);
+    -- Linear constraints: A, B
+    coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
+    A := matrix(QQ, for i to #K-1 list smat2vec(coeffMat(K_i, v2),Scaling=>2) );
 
     -- Consider search-parameters:
     Bh := flatten for k to #K-1 list (
@@ -392,40 +385,56 @@ createSOSModel = {Verbose=>false} >> o -> (f,p) -> (
         );
     B := map(QQ^#K,QQ^#p,Bh);
 
-    (C,Ai,Bi) := getImageModel(A,B,b,ndim,LinSpaceIndex);
+    (C,Ai,Bi) := getImageModel(A,B,b,ndim);
 
-    return (C,Ai,Bi,A,B,b,transpose matrix {lm},GramIndex,LinSpaceIndex);
+    return (C,Ai,Bi,A,B,b,transpose matrix {lm});
     )
 
-getImageModel = (A,B,b,ndim,LinSpaceIndex) -> (
+getImageModel = (A,B,b,ndim) -> (
     -- compute the C matrix
     c := b//A;
-    C := vec2smat(c,ndim,LinSpaceIndex);
+    C := vec2smat(c);
     -- compute the B_i matrices
     np := numColumns B;
     if np!=0 then (
         bi := -B//A;
         Bi := toSequence for k to np-1 list
-            vec2smat(bi_{k},ndim,LinSpaceIndex);
+            vec2smat(bi_{k});
     )else Bi = ();
     -- compute the A_i matrices     
     v := - generators kernel A;
 
     Ai := toSequence for k to (rank v)-1 list
-        vec2smat(v_{k},ndim,LinSpaceIndex);
+        vec2smat(v_{k});
 
     return (C,Ai,Bi);
     )
 
-vec2smat = (c,ndim,LinSpaceIndex) -> (
-    return map(QQ^ndim,QQ^ndim, (i,j) -> 
-        if i>=j then c_(LinSpaceIndex#(i,j),0)
-      	else c_(LinSpaceIndex#(j,i),0));
+smat2vec = method( Options => {Scaling => 1} )
+smat2vec(List) := o -> A -> (
+    n := #A;
+    v := for i to n-1 list
+        for j from i to n-1 list 
+            if i==j then A#i#j else o.Scaling*A#i#j;
+    return flatten v;
+    )
+smat2vec(Matrix) := o -> A -> matrix(ring A, apply(smat2vec(entries A,o), a->{a}))
+
+vec2smat = method( Options => {Scaling => 1} )
+vec2smat(List) := o -> v -> (
+    N := #v;
+    n := (-1 + round sqrt(1+8*N))//2;
+    ct := -1;
+    L := for i to n-1 list (toList(i:0) |
+        for j from i to n-1 list (ct = ct+1; ct));
+    A := table(toList(0..n-1), toList(0..n-1), (i,j) -> 
+        if i==j then v_(L#i#j) 
+        else if i<j then v_(L#i#j)/(o.Scaling)
+        else v_(L#j#i)/(o.Scaling) );
+    return A;
     )
 
-smat2Vec = (Q,Ndim,GramIndex) -> (
-    return matrix for i to Ndim-1 list {Q_(GramIndex#i)};
-    )
+vec2smat(Matrix) := o -> v -> matrix(ring v, vec2smat(flatten entries v,o))
 
 choosemonp = {Verbose=>false} >> o -> (f,p) -> (
      filterVerts := (verts) -> (
@@ -509,15 +518,15 @@ project2linspace = (A,b,x0) -> (
      xp := x02 - transpose(A2)*((A2*x02-b2)//(A2*transpose(A2)))
      )
 
-roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d,GramIndex,LinSpaceIndex) -> (
+roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d) -> (
      ndim := numRows Q;
 
      verbose("Rounding precision: " | d, o);
      Q0 := matrix (applyTable (entries Q, i -> round(i*2^d)/2^d) );
-     x0 := smat2Vec(Q0,numColumns A,GramIndex);
+     x0 := smat2vec(Q0);
      t := timing (xp := project2linspace(A,b,x0););
      verbose("Time needed for projection: " | net t#0, o);
-     Q = vec2smat(xp,ndim,LinSpaceIndex);
+     Q = vec2smat(xp);
 
      t = timing((L,D,P,Qpsd) := PSDdecomposition(Q););
      verbose("Time needed for LDL decomposition: " | net t#0, o);
@@ -1037,17 +1046,10 @@ checkDualSol = (C,A,y,Z,Verbose) -> (
     yA := sum for i to #A-1 list y_(i,0)*A_i;
     if norm(Z-C+yA)<1e-5 then return y;
     if Verbose then print "updating dual solution";
-    AA := transpose matrix(RR, smat2vec \ toList A);
-    bb := transpose matrix(RR, {smat2vec(C-Z)});
+    AA := transpose matrix(RR, smat2vec \ entries \ toList A);
+    bb := transpose matrix(RR, {smat2vec entries(C-Z)});
     y = solve(AA,bb,ClosestFit=>true);
     return y;
-    )
-
-smat2vec = A -> (
-    n := numColumns A;
-    v := for i to n-1 list
-        for j from i to n-1 list A_(i,j);
-    return flatten v;
     )
 
 --solveSDPA
