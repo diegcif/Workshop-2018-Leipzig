@@ -299,7 +299,7 @@ doc /// --roundPSDmatrix
     Headline
         rational rounding of a PSD matrix
     Usage
-        (Qp,ok) = roundPSDmatrix(Q,A,b,d,GramIndex,LinSpaceIndex)
+        (Qp,ok) = roundPSDmatrix(Q,A,b,d)
     Inputs
         Q:Matrix
           a positive semidefinite matrix
@@ -318,13 +318,13 @@ doc /// --roundPSDmatrix
       Text
         Returns the projection of a matrix $Q$ onto an affine subspace described by rational coefficients.
 
-        By vectorizing the matrices, the affine subspace can be described in the form $A q = b$.
-        GramIndex and LinSpaceIndex are hash tables that indicate how to vectorize the matrices.
+        By @TO2 {smat2vec,"vectorizing"}@ the matrices, the affine subspace can be described in the form $A q = b$.
       Code
       Pre
     SeeAlso
         createSOSModel
         project2linspace
+        smat2vec
 ///
 
 doc /// --choosemonp
@@ -382,10 +382,11 @@ doc /// --project2linspace
 doc /// --createSOSModel
     Key
         createSOSModel
+        (createSOSModel,RingElement,List)
     Headline
         model of the Gram matrix representations of a polynomial
     Usage
-        (C,Ai,Bi,A,B,b,mon,GramIndex,LinSpaceIndex) = createSOSModel(f,p)
+        (C,Ai,Bi,A,B,b,mon) = createSOSModel(f,p)
     Inputs
         f:RingElement
           a polynomial
@@ -399,8 +400,6 @@ doc /// --createSOSModel
         B:Matrix
         b:Matrix
         mon:Matrix
-        GramIndex:HashTable
-        LinSpaceIndex:HashTable
     Consequences
     Description
       Text
@@ -414,12 +413,47 @@ doc /// --createSOSModel
         $Q = C - \sum_i y_i A_i$,
         or in kernel form as
         $A q = b$
-        where $q_i = Q_{GramIndex#i}$.
+        where $q$ is the @TO2 {smat2vec,"vectorization"}@ of $Q$.
 
         If a vector of parameters $p$ is given, then the image form is
         $Q = C - \sum_i y_i A_i - \sum_j p_j B_j$,
         and the kernel form is
         $A q + B p = b$.
+      Code
+      Pre
+    SeeAlso
+///
+
+doc /// --smat2vec
+    Key
+        smat2vec
+        (smat2vec,Matrix)
+        (smat2vec,List)
+        vec2smat
+        (vec2smat,Matrix)
+        (vec2smat,List)
+    Headline
+        vectorization of a symmetric matrix
+    Usage
+        v = smat2vec A
+        A = vec2smat v
+    Inputs
+        A:Matrix
+          symmetric
+        v:Matrix
+          a vector
+    Outputs
+        v:Matrix
+        A:Matrix
+    Consequences
+    Description
+      Text
+        The method smat2vec obtains the vectorization of a symmetric matrix.
+        The method vec2smat performs the reverse operation.
+      Example
+        A = matrix(QQ, {{1,2,3,4},{2,5,6,7},{3,6,8,9},{4,7,9,10}})
+        v = smat2vec A
+        vec2smat v
       Code
       Pre
     SeeAlso
