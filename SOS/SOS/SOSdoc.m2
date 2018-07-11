@@ -448,8 +448,8 @@ doc /// --smat2vec
     Consequences
     Description
       Text
-        The method smat2vec obtains the vectorization of a symmetric matrix.
-        The method vec2smat performs the reverse operation.
+        The method {\tt smat2vec} obtains the vectorization of a symmetric matrix.
+        The method {\tt vec2smat} performs the reverse operation.
       Example
         A = matrix(QQ, {{1,2,3,4},{2,5,6,7},{3,6,8,9},{4,7,9,10}})
         v = smat2vec A

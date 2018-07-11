@@ -346,22 +346,24 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
     )
 
 createSOSModel = method(
-     Options => {Verbose => false} )
+    Options => {Verbose => false} )
 createSOSModel(RingElement,List) := o -> (f,p) -> (
-    -- Degree and number of variables
-    n := numgens ring f;
-    d := (first degree f)//2;
-    -- Get list of monomials for SOS decomposition
-    (lmf,lm) := choosemonp (f,p,o);
-    if #lm==0 then return (,,,,,,lm,,);
-    
-    -- This is a hash table that maps monomials into pairs of indices
-    v := matrix {lm};
-    v2 := entries(transpose v* v);
-    K := unique flatten v2;
+    mon := choosemonp (f,p,o);
+    if mon===null then return (,,,,,,);
+    return createSOSModel(f,p,mon,o);
+    )
+createSOSModel(RingElement,List,ZZ) := o -> (f,p,d) -> (
+    mon := choosemonp (f,p,d,o);
+    return createSOSModel(f,p,mon,o);
+    )
+createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
+    -- monomials in vvT
+    vvT := entries(v* transpose v);
+    mons := g -> first entries monomials g;
+    K := sort \\ unique \\ flatten \\ mons \ flatten vvT;
 
     -- Writes the matrix, in sparse form
-    ndim := #lm; -- binomial(n+d,d);
+    ndim := numRows v; -- binomial(n+d,d);
     mdim := #K; --binomial(n+2*d,2*d);
     
     -- A hash table with the coefficients (should be an easier way)
@@ -374,7 +376,7 @@ createSOSModel(RingElement,List) := o -> (f,p) -> (
 
     -- Linear constraints: A, B
     coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
-    A := matrix(QQ, for i to #K-1 list smat2vec(coeffMat(K_i, v2),Scaling=>2) );
+    A := matrix(QQ, for i to #K-1 list smat2vec(coeffMat(K_i, vvT),Scaling=>2) );
 
     -- Consider search-parameters:
     Bh := flatten for k to #K-1 list (
@@ -387,7 +389,7 @@ createSOSModel(RingElement,List) := o -> (f,p) -> (
 
     (C,Ai,Bi) := getImageModel(A,B,b,ndim);
 
-    return (C,Ai,Bi,A,B,b,transpose matrix {lm});
+    return (C,Ai,Bi,A,B,b,v);
     )
 
 getImageModel = (A,B,b,ndim) -> (
@@ -436,7 +438,18 @@ vec2smat(List) := o -> v -> (
 
 vec2smat(Matrix) := o -> v -> matrix(ring v, vec2smat(flatten entries v,o))
 
-choosemonp = {Verbose=>false} >> o -> (f,p) -> (
+choosemonp = method(
+    Options => {Verbose => false} )
+choosemonp(RingElement,List,ZZ) := o -> (f,p,d) -> (
+    if d<0 then error "degree cannot be negative";
+    R := ring f;
+    X := toList(set(gens R) - p);
+    degX := h -> sum for x in X list degree(x,h);
+    homog := isHomogeneous R and #set(degX \ terms f)==1;
+    mon := if homog then basis(d,R) else basis(0,d,R);
+    return transpose mon;
+    )
+choosemonp(RingElement,List) := o -> (f,p) -> (
      filterVerts := (verts) -> (
          -- only consider those without parameters (this is a hack!)
          R := ring f;
@@ -478,7 +491,7 @@ choosemonp = {Verbose=>false} >> o -> (f,p) -> (
      oddverts := select(entries transpose polytope, i->any(i,odd));
      if #filterVerts(oddverts)>0 then(
          print("Newton polytope has odd vertices. Terminate.");
-         return (lmf,{});
+         return;
          );
 
      -- Get candidate points from basis of f:
@@ -504,7 +517,8 @@ choosemonp = {Verbose=>false} >> o -> (f,p) -> (
             ));
      verbose("#points inside Newton polytope: " | #lmSOS, o);
 
-     return (lmf,lmSOS);
+     if #lmSOS==0 then return;
+     return matrix transpose {lmSOS};
      )
 
 project2linspace = (A,b,x0) -> (
@@ -1494,10 +1508,10 @@ TEST /// --sosdec
 TEST /// --choosemonp
     R = QQ[x,y,t];
     f = x^4+2*x*y-x+y^4
-    (lmf,lmsos) = choosemonp(f,{}, Verbose=>true)
-    assert( #lmsos == 0 )
-    (lmf,lmsos) = choosemonp(f-t,{t}, Verbose=>true)
-    assert( #lmsos == 6 )
+    lmsos = choosemonp(f,{})
+    assert( lmsos === null )
+    lmsos = choosemonp(f-t,{t})
+    assert( numRows lmsos == 6 )
 ///
 
 TEST /// --blkDiag
