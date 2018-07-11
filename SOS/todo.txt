@@ -2,23 +2,28 @@
 ##### NEW FUNCTIONS #####
 #########################
 
-Implement the following methods
-
-1) checkSolver, run all tests using a given solver and print results
-2) realZeros, find the real zeros of an ideal
-
 Extend the following methods to quotient rings:
 
-3) createSOSModel
-4) solveSOS
-5) lasserreHierarchy
-6) sosInIdeal
+1) createSOSModel
+2) solveSOS
+3) lasserreHierarchy
+4) sosInIdeal
 
-Improve the following methods
+#########################
+######## IMPROVE ########
+#########################
 
-7) net(SOSPoly)
-8) solveSDP should accept many PSD blocks
-9) lasserreHierarchy, allow inequalities
+The following methods need to be improved
+
+1) realZeros should work on a nontrivial example
+2) createSOSModel should be faster than solving the SDP
+3) solveSDP should accept many PSD blocks
+4) lasserreHierarchy, should allow inequalities (very hard)
+
+Other issues
+
+5) net(SOSPoly) should look nicer
+6) perhaps we should use multigrading for handling parameters (e.g. solveSOS)
 
 #########################
 ######## TESTING ########
