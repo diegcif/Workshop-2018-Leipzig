@@ -57,6 +57,7 @@ export {
     "TraceObj",
     "EigTol",
     "Scaling",
+    "ParBounds",
     "sos"
 }
 
@@ -183,14 +184,18 @@ sosdec = (Q,mon) -> (
 -- This is the main method to decompose a polynomial as a 
 -- sum of squares using an SDP solver.
 solveSOS = method(
-     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
  
-solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
+solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
     -- f is a polynomial to decompose
     -- p is a list of variables of f that are interpreted as parameters
+    -- d is a degree bound for the monomials
     -- objFcn is a linear objective function for the SDP solver
     -- bounds can be empty or contain upper and lower bounds for the parameters
+    bounds := o.ParBounds;
+    R := ring f;
     if first degree objFcn > 1 then error("Only linear objective function allowed.");
+    if isQuotientRing R and d<0 then error("Degree bound is required in quotient rings.");
     parBounded := false;
     if #bounds==2 then (
         lB := promote(bounds#0,QQ);
@@ -199,8 +204,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     )else if #bounds!=0 then 
         error "expected a list with two elements";
 
-    R0 := ring f;
-    kk := coefficientRing R0;
+    kk := coefficientRing R;
     if kk=!=QQ then (
         S := changeRingField(QQ,ring f);
         f = toRing_S f;
@@ -209,11 +213,12 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
         );
          
     -- build SOS model --     
-    (C,Ai,Bi,A,B,b,mon) := createSOSModel(f,p,Verbose=>o.Verbose);
-    if #mon==0 then return (,mon,,);
+    mon := if isQuotientRing R then choosemonp (f,p,d,Verbose=>o.Verbose)
+        else choosemonp (f,p,Verbose=>o.Verbose);
+    if mon===null then return (,mon,,);
+    (C,Ai,Bi,A,B,b) := createSOSModel(f,p,mon,Verbose=>o.Verbose);
 
     ndim := numRows C;
-    mdim := #Ai;
 
     if #p!=0 and objFcn!=0 then (
         -- compute an optimal solution --
@@ -245,7 +250,7 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
     pvec0 := flatten entries y^(toList(0..#p-1));
 
     if kk=!=QQ then
-        return (Q,sub(mon,R0),X,pvec0);
+        return (Q,sub(mon,R),X,pvec0);
     if o.RndTol==infinity then
         return (Q,changeMatrixField(RR,mon),X,pvec0);
 
@@ -258,11 +263,16 @@ solveSOS(RingElement,List,RingElement,List) := o -> (f,p,objFcn,bounds) -> (
 
 -- Variants of solveSOS with fewer arguments
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
-    solveSOS(f,p,objFcn,{},o)
+    solveSOS(f,p,objFcn,-1,o)
 solveSOS(RingElement,List) := o -> (f,p) -> 
     solveSOS(f,p,0_(ring f),o)
 solveSOS(RingElement) := o -> (f) -> 
     drop(solveSOS(f,{},o),-1)
+
+solveSOS(RingElement,List,ZZ) := o -> (f,p,d) -> 
+    solveSOS(f,p,0_(ring f),d,o)
+solveSOS(RingElement,ZZ) := o -> (f,d) -> 
+    drop(solveSOS(f,{},0_(ring f),d,o),-1)
 
 changeRingField = (kk,R) -> kk(monoid[gens R])
 
@@ -347,25 +357,12 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
 
 createSOSModel = method(
     Options => {Verbose => false} )
-createSOSModel(RingElement,List) := o -> (f,p) -> (
-    mon := choosemonp (f,p,o);
-    if mon===null then return (,,,,,,);
-    return createSOSModel(f,p,mon,o);
-    )
-createSOSModel(RingElement,List,ZZ) := o -> (f,p,d) -> (
-    mon := choosemonp (f,p,d,o);
-    return createSOSModel(f,p,mon,o);
-    )
 createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
     -- monomials in vvT
     vvT := entries(v* transpose v);
     mons := g -> first entries monomials g;
     K := sort \\ unique \\ flatten \\ mons \ flatten vvT;
 
-    -- Writes the matrix, in sparse form
-    ndim := numRows v; -- binomial(n+d,d);
-    mdim := #K; --binomial(n+2*d,2*d);
-    
     -- A hash table with the coefficients (should be an easier way)
     (mf,cf) := coefficients f ;
     Hf := hashTable for i to numRows cf-1 list mf_(0,i) => sub(cf_(i,0),QQ);
@@ -387,12 +384,12 @@ createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
         );
     B := map(QQ^#K,QQ^#p,Bh);
 
-    (C,Ai,Bi) := getImageModel(A,B,b,ndim);
+    (C,Ai,Bi) := getImageModel(A,B,b);
 
-    return (C,Ai,Bi,A,B,b,v);
+    return (C,Ai,Bi,A,B,b);
     )
 
-getImageModel = (A,B,b,ndim) -> (
+getImageModel = (A,B,b) -> (
     -- compute the C matrix
     c := b//A;
     C := vec2smat(c);
@@ -533,8 +530,6 @@ project2linspace = (A,b,x0) -> (
      )
 
 roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d) -> (
-     ndim := numRows Q;
-
      verbose("Rounding precision: " | d, o);
      Q0 := matrix (applyTable (entries Q, i -> round(i*2^d)/2^d) );
      x0 := smat2vec(Q0);
@@ -646,7 +641,7 @@ genericCombination = (h, D, homog) -> (
     -- ring of parameters
     pvars := for i to #h-1 list
         toList( p_(i,0)..p_(i,#(mon#i)-1) );
-    S := newRing (R, Variables=> gens R|flatten pvars);
+    S := changeRingVars (R, flatten pvars);
     pvars = for i to #h-1 list apply (pvars#i, m->S_m);
     -- polynomial multipliers
     g := for i to #h-1 list
@@ -654,6 +649,11 @@ genericCombination = (h, D, homog) -> (
     h = apply(h, hi -> sub(hi,S));
     F := dotProd(h,g);
     return (F,flatten pvars,g);
+    )
+
+changeRingVars = (R, pvars) -> (
+    if isQuotientRing R then error "not implemented yet";
+    return newRing (R, Variables=> gens R | pvars);
     )
 
 sosInIdeal = method(
@@ -755,7 +755,7 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     R := ring f;
     tvar := local t;
-    newR := newRing (R, Variables=> gens R| {tvar});
+    newR := changeRingVars (R, {tvar});
     phi := map(newR, R);
     tpoly := last gens newR;
     (Q, mon, X, tval) := solveSOS(phi(f)-tpoly,{tpoly}|phi\pars,-tpoly, o');

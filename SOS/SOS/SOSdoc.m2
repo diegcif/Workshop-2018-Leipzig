@@ -200,7 +200,7 @@ doc /// --solveSOS
         (solveSOS,RingElement)
         (solveSOS,RingElement,List)
         (solveSOS,RingElement,List,RingElement)
-        (solveSOS,RingElement,List,RingElement,List)
+        (solveSOS,RingElement,List,RingElement,ZZ)
     Headline
         solve a sum-of-squares problem
     Usage
@@ -382,16 +382,18 @@ doc /// --project2linspace
 doc /// --createSOSModel
     Key
         createSOSModel
-        (createSOSModel,RingElement,List)
+        (createSOSModel,RingElement,List,Matrix)
     Headline
         model of the Gram matrix representations of a polynomial
     Usage
-        (C,Ai,Bi,A,B,b,mon) = createSOSModel(f,p)
+        (C,Ai,Bi,A,B,b) = createSOSModel(f,p)
     Inputs
         f:RingElement
           a polynomial
         p:List
           of parameters
+        mon:Matrix
+          a vector of monomials
     Outputs
         C:Matrix
         Ai:Sequence
@@ -399,7 +401,6 @@ doc /// --createSOSModel
         A:Matrix
         B:Matrix
         b:Matrix
-        mon:Matrix
     Consequences
     Description
       Text
