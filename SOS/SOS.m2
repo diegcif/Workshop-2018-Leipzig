@@ -17,7 +17,7 @@ newPackage(
     DebuggingMode => true,
     Configuration => {"CSDPexec"=>"csdp","SDPAexec"=>"sdpa"},
     AuxiliaryFiles => true,
-    PackageImports => {"SimpleDoc","FourierMotzkin"},
+    PackageImports => {"SimpleDoc","FourierMotzkin","NumericalAlgebraicGeometry"},
     PackageExports => {}
 )
 
@@ -205,12 +205,6 @@ solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
         error "expected a list with two elements";
 
     kk := coefficientRing R;
-    if kk=!=QQ then (
-        S := changeRingField(QQ,ring f);
-        f = toRing_S f;
-        p = toRing_S \ p;
-        objFcn = toRing_S objFcn;
-        );
          
     -- build SOS model --     
     mon := if isQuotientRing R then choosemonp (f,p,d,Verbose=>o.Verbose)
@@ -224,15 +218,15 @@ solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
         -- compute an optimal solution --
         verbose("Solving SOS optimization problem...", o);
         (objMon,objCoef) := coefficients objFcn;
-        objP := map(QQ^#p,QQ^1, (i,j) -> -coefficient(p_i, objFcn));
-        obj := objP || map(QQ^#Ai,QQ^1,i->0);
+        objP := map(kk^#p,kk^1, (i,j) -> -coefficient(p_i, objFcn));
+        obj := objP || map(kk^#Ai,kk^1,i->0);
         
         if parBounded then (
             C = blkDiag(C,diagonalMatrix(-lB),diagonalMatrix(uB));
-            Ai = for i to #Ai-1 list blkDiag(Ai_i, map(QQ^(2*#p), QQ^(2*#p), j -> 0));
+            Ai = for i to #Ai-1 list blkDiag(Ai_i, map(kk^(2*#p), kk^(2*#p), j -> 0));
             Bi = for i to #Bi-1 list blkDiag(Bi_i, 
-                map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then 1_QQ else 0_QQ),
-                map(QQ^#p,QQ^#p, (j,k) -> if j==k and j==i then -1_QQ else 0_QQ));
+                map(kk^#p,kk^#p, (j,k) -> if j==k and j==i then 1_kk else 0_kk),
+                map(kk^#p,kk^#p, (j,k) -> if j==k and j==i then -1_kk else 0_kk));
         );
     )else if o.TraceObj then (
         -- compute an optimal solution --
@@ -250,7 +244,7 @@ solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
     pvec0 := flatten entries y^(toList(0..#p-1));
 
     if kk=!=QQ then
-        return (Q,sub(mon,R),X,pvec0);
+        return (Q,mon,X,pvec0);
     if o.RndTol==infinity then
         return (Q,changeMatrixField(RR,mon),X,pvec0);
 
@@ -358,6 +352,8 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
 createSOSModel = method(
     Options => {Verbose => false} )
 createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
+    kk := coefficientRing ring f;
+
     -- monomials in vvT
     vvT := entries(v* transpose v);
     mons := g -> first entries monomials g;
@@ -365,15 +361,15 @@ createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
 
     -- A hash table with the coefficients (should be an easier way)
     (mf,cf) := coefficients f ;
-    Hf := hashTable for i to numRows cf-1 list mf_(0,i) => sub(cf_(i,0),QQ);
+    Hf := hashTable for i to numRows cf-1 list mf_(0,i) => sub(cf_(i,0),kk);
     
     -- Linear constraints: b
-    b := transpose matrix(QQ,{for k in K list
+    b := transpose matrix(kk,{for k in K list
         if Hf#?k then Hf#k else 0});
 
     -- Linear constraints: A, B
     coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
-    A := matrix(QQ, for i to #K-1 list smat2vec(coeffMat(K_i, vvT),Scaling=>2) );
+    A := matrix(kk, for i to #K-1 list smat2vec(coeffMat(K_i, vvT),Scaling=>2) );
 
     -- Consider search-parameters:
     Bh := flatten for k to #K-1 list (
@@ -382,7 +378,7 @@ createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
             if not Hf#?mp then continue;
             (k,i) => -Hf#mp )
         );
-    B := map(QQ^#K,QQ^#p,Bh);
+    B := map(kk^#K,kk^#p,Bh);
 
     (C,Ai,Bi) := getImageModel(A,B,b);
 
@@ -401,12 +397,19 @@ getImageModel = (A,B,b) -> (
             vec2smat(bi_{k});
     )else Bi = ();
     -- compute the A_i matrices     
-    v := - generators kernel A;
+    v := - kernelGens A;
 
     Ai := toSequence for k to (rank v)-1 list
         vec2smat(v_{k});
 
     return (C,Ai,Bi);
+    )
+
+kernelGens = A -> (
+    if ring A === QQ or ring A === ZZ then
+        return generators kernel A;
+    tol := 1e-12;
+    return numericalKernel(A,tol);
     )
 
 smat2vec = method( Options => {Scaling => 1} )
@@ -477,7 +480,7 @@ choosemonp(RingElement,List) := o -> (f,p) -> (
      basV := mingens image V;
      basVdim := numgens image basV;
      if basVdim != n then T := id_(QQ^n)//basV else T = id_(QQ^n);
-     basVtrans := mingens kernel transpose basV;
+     basVtrans := kernelGens transpose basV;
      
      -- Compute Newton polytope:
      liftedpts := T*V || map (QQ^1,QQ^(size falt),i->1);
@@ -1445,11 +1448,13 @@ TEST /// --SOSmult
     p2=sosPoly(R,{y^3,x*w*z,y*z^2},{3,1/2,1/4})
     assert(sumSOS(p1*p2)==sumSOS(p1)*sumSOS(p2))
     assert(sumSOS(p1^4)==sumSOS(p1)^4)
+
+    equal = (f1,f2) -> norm(f1-f2) < 1e-8;
     R = RR[x,y,z,w]
     p1=sosPoly(R,{x^2-x*y,y^2+1,x},{1.32,1.47,12./7})
     p2=sosPoly(R,{y^3,x*w*z,y*z^2},{3.1,1.31,2.0})
-    assert( norm(sumSOS(p1*p2)-sumSOS(p1)*sumSOS(p2)) < 1e-8 )
-    assert( norm(sumSOS(p1^4)-sumSOS(p1)^4) < 1e-8 )
+    assert( equal(sumSOS(p1*p2),sumSOS(p1)*sumSOS(p2)) )
+    assert( equal(sumSOS(p1^4),sumSOS(p1)^4) )
 ///
 
 TEST /// --cleanSOS
@@ -1511,7 +1516,33 @@ TEST /// --choosemonp
     lmsos = choosemonp(f,{})
     assert( lmsos === null )
     lmsos = choosemonp(f-t,{t})
-    assert( numRows lmsos == 6 )
+    assert( ring lmsos===R and numRows lmsos == 6 )
+    
+    R = RR[x,y,t];
+    f = x^4+2*x*y-x+y^4
+    lmsos = choosemonp(f-t,{t})
+    assert( ring lmsos===R and numRows lmsos == 6 )
+///
+
+TEST /// --createSOSModel
+    eval = (Q,v) -> (transpose v * Q * v)_(0,0)
+    
+    R = QQ[x,t];
+    f = x^4 - 2*x + t;
+    mon = matrix{{1},{x},{x^2}}
+    (C,Ai,Bi,A,B,b) = createSOSModel(f,{t},mon)
+    assert( eval(C,mon) == x^4 - 2*x )
+    assert( #Ai==1 and eval(Ai#0,mon) == 0 )
+    assert( #Bi==1 and eval(Bi#0,mon) == 1 )
+    
+    equal = (f1,f2) -> norm(f1-f2) < 1e-8;
+    R = RR[x,t];
+    f = x^4 - 2*x + t;
+    mon = matrix{{1},{x},{x^2}}
+    (C,Ai,Bi,A,B,b) = createSOSModel(f,{t},mon)
+    assert( equal(eval(C,mon), x^4 - 2*x) )
+    assert( #Ai==1 and equal(eval(Ai#0,mon), 0) )
+    assert( #Bi==1 and equal(eval(Bi#0,mon), 1) )
 ///
 
 TEST /// --blkDiag
@@ -1524,22 +1555,22 @@ TEST /// --blkDiag
 ///
 
 TEST /// --LDLdecomposition
---  Simple example
     A = matrix(QQ, {{5,3,5},{3,2,4},{5,4,10}})
     (L,D,P,err) = LDLdecomposition A
     assert(err==0 and L*D*transpose L == transpose P * A * P)
     (L,D,P,err) = LDLdecomposition promote(A,RR)
     assert(err==0 and L*D*transpose L == transpose P * A * P)
     
---  Random low-rank matrix
     V = random(QQ^12,QQ^8)
     A = V * transpose V 
     (L,D,P,err) = LDLdecomposition(A)
     assert(err==0 and L*D*transpose L == transpose P * A * P)
+
+    equal = (f1,f2) -> norm(f1-f2) < 1e-6;
     V = random(RR^12,RR^8)
     A = V * transpose V 
     (L,D,P,err) = LDLdecomposition(A)
-    assert(err==0 and norm(L*D*transpose L - transpose P * A * P) < 1e-6)
+    assert(err==0 and equal(L*D*transpose L, transpose P * A * P))
 ///
 
 TEST ///--genericCombination
