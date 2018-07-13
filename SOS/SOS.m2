@@ -17,7 +17,7 @@ newPackage(
     DebuggingMode => true,
     Configuration => {"CSDPexec"=>"csdp","SDPAexec"=>"sdpa"},
     AuxiliaryFiles => true,
-    PackageImports => {"SimpleDoc","FourierMotzkin","NumericalAlgebraicGeometry"},
+    PackageImports => {"SimpleDoc","FourierMotzkin","NumericalHilbert"},
     PackageExports => {}
 )
 
@@ -33,7 +33,7 @@ export {
     "blkDiag",
     "LDLdecomposition",
     "solveSDP",
-    "genericCombination",
+    "makeMultiples",
     "sosInIdeal",
     "lowerBound",
     "lasserreHierarchy",
@@ -215,13 +215,13 @@ solveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
         if o.TraceObj then
             map(RR^(#Bi),RR^1,(i,j)-> -trace Bi#i) || map(RR^(#Ai),RR^1,(i,j)-> -trace Ai#i)
         else
-            (-objP) || map(kk^#Ai,kk^1,{}); 
+            (-objP) || zeros(kk,#Ai,1); 
     if obj==0 then verbose( "Solving SOS feasibility problem...", o)
     else verbose("Solving SOS optimization problem...", o);
 
     if np!=0 and #bounds==2 then (
         C = blkDiag(C,diagonalMatrix(-bounds#0),diagonalMatrix(bounds#1));
-        Ai = for i to #Ai-1 list blkDiag(Ai_i, map(kk^(2*np), kk^(2*np), j -> 0));
+        Ai = for i to #Ai-1 list blkDiag(Ai_i, zeros(kk,2*np,2*np));
         Bi = for i to #Bi-1 list blkDiag(Bi_i, 
             map(kk^np,kk^np, (j,k) -> if j==k and j==i then 1_kk else 0_kk),
             map(kk^np,kk^np, (j,k) -> if j==k and j==i then -1_kk else 0_kk));
@@ -253,7 +253,6 @@ solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> (
     R := ring f;
     kk := coefficientRing R;
     (F,objP) := parameterVector(f,p,objFcn);
-    if isQuotientRing R then error("Monomial vector must be provided in quotient rings.");
     mon := choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,mon,,);
     (Q,X,pvec) := solveSOS(F,objP,mon,o);
@@ -273,6 +272,21 @@ solveSOS(RingElement,List,Matrix) := o -> (f,p,mon) ->
     solveSOS(f,p,0_(ring f),mon,o)
 solveSOS(RingElement,Matrix) := o -> (f,mon) -> 
     drop(solveSOS(f,{},0_(ring f),mon,o),-1)
+
+solveSOS(Matrix,Matrix) := o -> (F,objP) -> (
+    R := ring F;
+    kk := coefficientRing R;
+    mon := choosemonp (F,Verbose=>o.Verbose);
+    if mon===null then return (,mon,,);
+    (Q,X,pvec) := solveSOS(F,objP,mon,o);
+    if Q===null then return (,mon,,);
+    if kk===QQ then
+        if o.RndTol==infinity or ring Q=!=QQ then
+            mon = changeMatrixField(RR,mon);
+    return (Q,mon,X,pvec);
+    )
+solveSOS(Matrix) := o -> (F) -> 
+    solveSOS(F,zeros(QQ,numRows F-1,1),o)
 
 changeRingField = (kk,R) -> kk(monoid[gens R])
 
@@ -429,6 +443,8 @@ kernelGens = A -> (
     return numericalKernel(A,tol);
     )
 
+zeros = (kk,m,n) -> map(kk^m,kk^n,{})
+
 smat2vec = method( Options => {Scaling => 1} )
 smat2vec(List) := o -> A -> (
     n := #A;
@@ -465,6 +481,7 @@ choosemonp(RingElement,List) := o -> (f,p) -> (
     )
 choosemonp(Matrix) := o -> (F) -> (
      R := ring F;
+     if isQuotientRing R then error("Monomial vector must be provided in quotient rings.");
      n:= numgens R;
      mons := g -> set first entries monomials g;
      lm0 := mons F_(0,0);
@@ -643,11 +660,9 @@ blkDiag = args -> (
 -- SOS IDEAL
 --###################################
 
-dotProd = (a, b) -> sum apply (a, b, (i,j)->i*j);
-genericCombination = (h, D, homog) -> (
+makeMultiples = (h, D, homog) -> (
     -- h is a list of polynomials
-    -- D is the output degree
-    -- returns generic combination of the input polynomials
+    -- multiplies each hi with monomials up to degree D
     if #h==0 then error "list of polynomials is empty";
     if D < max\\first\degree\h then
         error "increase degree bound";
@@ -659,22 +674,8 @@ genericCombination = (h, D, homog) -> (
         b := if homog then basis(di,R) else basis(0,di,R);
         flatten entries b
         );
-    -- ring of parameters
-    pvars := for i to #h-1 list
-        toList( p_(i,0)..p_(i,#(mon#i)-1) );
-    S := changeRingVars (R, flatten pvars);
-    pvars = for i to #h-1 list apply (pvars#i, m->S_m);
-    -- polynomial multipliers
-    g := for i to #h-1 list
-        dotProd ( pvars#i , apply (mon#i, m -> sub (m, S)) );
-    h = apply(h, hi -> sub(hi,S));
-    F := dotProd(h,g);
-    return (F,flatten pvars,g);
-    )
-
-changeRingVars = (R, pvars) -> (
-    if isQuotientRing R then error "not implemented yet";
-    return newRing (R, Variables=> gens R | pvars);
+    H := for i to #h-1 list h#i * mon#i;
+    return (flatten H, flatten mon);
     )
 
 sosInIdeal = method(
@@ -689,8 +690,9 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
 
     if odd D then error "D must be even";
     homog := all(h, isHomogeneous);
-    (f,p,mult) := genericCombination(h, D, homog);
-    (Q,mon,X,tval) := solveSOS (f, p, o);
+    (H,m) := makeMultiples(h, D, homog);
+    F := matrix transpose {{0}|H};
+    (Q,mon,X,tval) := solveSOS (F, o);
     if Q===null or Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
@@ -705,13 +707,8 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
     if kk =!= coefficientRing S then
         S = kk(monoid[gens ring h#0]);
     a = sub(a,S);
-    h = for hi in h list sub(hi,S);
-    -- get multipliers
-    T := kk(monoid[gens ring f]);
-    dic := for i to #p-1 list sub(p#i,T) => tval#i;
-    mult = for m in mult list sub(sub(sub(m,T),dic),S);
-    -- another way (using gb)
-    -- mult = flatten entries (sumSOS a // gens ideal(h));
+    m = for i in m list sub(i,S);
+    mult := sum apply(m,tval,(i,j)->i*j);
     return (a,mult);
     )
 
@@ -759,10 +756,9 @@ rank1factor(Matrix) := o -> (X) -> (
     return retval;
     )
 
-lowerBound = method(
+rawLowerBound = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
-
-lowerBound(RingElement,List) := o -> (f,pars) -> (
+rawLowerBound(RingElement,Matrix) := o -> (f,H) -> (
     -- sos lower bound for the polynomial f
     getSolution := (x,mon) -> (
         if x===null then return {};
@@ -775,11 +771,11 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
     o' := new OptionTable from
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     R := ring f;
-    tvar := local t;
-    newR := changeRingVars (R, {tvar});
-    phi := map(newR, R);
-    tpoly := last gens newR;
-    (Q, mon, X, tval) := solveSOS(phi(f)-tpoly,{tpoly}|phi\pars,-tpoly, o');
+    kk := coefficientRing R;
+    np := numRows H;
+    F := matrix{{f},{-1}} || H;
+    objP := matrix{{-1}} || zeros(kk,np,1);
+    (Q, mon, X, tval) := solveSOS(F,objP, o');
     if Q===null then return (,);
     bound := first tval;
     x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
@@ -787,7 +783,10 @@ lowerBound(RingElement,List) := o -> (f,pars) -> (
     sol := getSolution(x,mon);
     return (bound, sol);
     )
-lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},o)
+
+lowerBound = method(
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+lowerBound(RingElement) := o -> (f) -> rawLowerBound(f,zeros(ring f,0,1),o)
 
 -- Minimize a polynomial on an algebraic set using SDP relaxations:
 lasserreHierarchy = method(
@@ -801,10 +800,9 @@ lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
     if all(h|{f}, isHomogeneous) then
         error "problem is homogeneous";
     R := ring f;
-    (H,p,mult) := genericCombination(h, D, false);
-    S := ring H;
-    f = sub(f,S);
-    (bound,sol) := lowerBound(f+H, p, o);
+    (H,m) := makeMultiples(h, D, false);
+    H = matrix transpose {H};
+    (bound,sol) := rawLowerBound(f,H,o);
     if bound===null then return (,);
     sol = for p in sol list sub(p#0,R)=>p#1;
     return (bound,sol);
@@ -871,7 +869,7 @@ sdpNoConstraints = (C,A,b) -> (
         lambda := min eigenvalues(C, Hermitian=>true);
         if lambda>=0 then(
             print "SDP solved";
-            y0 := map(RR^#A,RR^1,i->0);
+            y0 := zeros(RR,#A,1);
             return (true, y0, 0*C, C);
         )else(
             print "dual infeasible";
@@ -887,7 +885,7 @@ trivialSDP = (C,A,b) -> (
         lambda := min eigenvalues(C, Hermitian=>true);
         if lambda>=0 then(
             print "SDP solved";
-            y0 := map(RR^#A,RR^1,i->0);
+            y0 := zeros(RR,#A,1);
             return (true, y0, 0*C, C);
         )else if #A==0 then(
             print "dual infeasible";
@@ -911,11 +909,11 @@ simpleSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
     (y,Z) := (,);
     lambda := min eigenvalues (C, Hermitian=>true);
     if lambda > 0 then
-        y = map(R^#A,R^1,(i,j)-> 0)
+        y = zeros(R,#A,1)
     else(
         verbose("Computing strictly feasible solution...", o);
-        y =  map(R^#A,R^1,i->0) || matrix{{lambda*1.1}};
-        obj :=  map(R^#A,R^1,i->0) || matrix{{-1_R}};
+        y =  zeros(R,#A,1) || matrix{{lambda*1.1}};
+        obj :=  zeros(R,#A,1) || matrix{{-1_R}};
         (y,Z) = simpleSDP(C,append(A,id_(R^n)), obj, y, UntilObjNegative=>true, Verbose=>o.Verbose);
         if y===null then return (,);
         y = transpose matrix {take (flatten entries y,numRows y - 1)};
@@ -1592,26 +1590,18 @@ TEST /// --LDLdecomposition
     assert(err==0 and equal(L*D*transpose L, transpose P * A * P))
 ///
 
-TEST ///--genericCombination
+TEST ///--makeMultiples
     R = QQ[x,y,z]
     f1 = x + y
     f2 = x^2 + z^2
     h = {f1,f2}
-    (f,p,mult) = genericCombination (h,3, false)
-    assert (first degree f == 4) -- includes coefficients
-    assert (#p == 14)
-    assert (#mult == 2)
-    assert (first degree mult#0 == 3)
-    assert (first degree mult#1 == 2)
-    f1' = sub (f1, ring mult#0)
-    f2' = sub (f2, ring mult#0)
-    assert (mult#0*f1' + mult#1*f2' == f)
-    (fh,ph,multh) = genericCombination (h,3, true)
-    assert isHomogeneous fh
-    assert (#ph == 9)
-    f1' = sub (f1, ring multh#0)
-    f2' = sub (f2, ring multh#0)
-    assert (multh#0*f1' + multh#1*f2' == fh)
+    (H,m) = makeMultiples (h,3, false)
+    assert (#H == 14 )
+    assert( max(first\degree\H) == 3 )
+    
+    (H,m) = makeMultiples (h,3, true)
+    assert(#H == 9)
+    assert( unique(first\degree\H) == {3} )
 ///
 
 TEST /// --solveSDP
