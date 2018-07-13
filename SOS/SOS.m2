@@ -190,22 +190,20 @@ solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
     -- p is a list of variables of f that are interpreted as parameters
     -- mon is a vector of monomials
     -- objFcn is a linear objective function for the SDP solver
-    -- bounds can be empty or contain upper and lower bounds for the parameters
-    if numColumns mon > 1 then error("Monomial vector should be a column.");
-    isMonomial := max(length \ terms \ flatten entries mon)==1;
-    if not isMonomial then error("Vector must consist of monomials.");
-    bounds := o.ParBounds;
-    R := ring f;
-    if first degree objFcn > 1 then error("Only linear objective function allowed.");
-    parBounded := false;
-    if #bounds==2 then (
-        lB := promote(bounds#0,QQ);
-        uB := promote(bounds#1,QQ);
-        parBounded = true;
-    )else if #bounds!=0 then 
-        error "expected a list with two elements";
+    -- bounds can be empty or contain lower and upper bounds for the parameters
 
-    kk := coefficientRing R;
+    checkInputs := (mon,objFcn,bounds) -> (
+        if numColumns mon > 1 then error("Monomial vector should be a column.");
+        isMonomial := max(length \ terms \ flatten entries mon)==1;
+        if not isMonomial then error("Vector must consist of monomials.");
+        if first degree objFcn > 1 then error("Only linear objective function allowed.");
+        if not member(#bounds,{0,2}) then 
+            error "ParBounds should be a list with two elements";
+        );
+
+    bounds := o.ParBounds;
+    checkInputs(mon,objFcn,bounds);
+    kk := coefficientRing ring f;
          
     -- build SOS model --     
     (C,Ai,Bi,A,B,b) := createSOSModel(f,p,mon,Verbose=>o.Verbose);
@@ -219,8 +217,8 @@ solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
         objP := map(kk^#p,kk^1, (i,j) -> -coefficient(p_i, objFcn));
         obj := objP || map(kk^#Ai,kk^1,i->0);
         
-        if parBounded then (
-            C = blkDiag(C,diagonalMatrix(-lB),diagonalMatrix(uB));
+        if #bounds==2 then (
+            C = blkDiag(C,diagonalMatrix(-bounds#0),diagonalMatrix(bounds#1));
             Ai = for i to #Ai-1 list blkDiag(Ai_i, map(kk^(2*#p), kk^(2*#p), j -> 0));
             Bi = for i to #Bi-1 list blkDiag(Bi_i, 
                 map(kk^#p,kk^#p, (j,k) -> if j==k and j==i then 1_kk else 0_kk),
@@ -238,7 +236,7 @@ solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (Q,X,);
     y := -my;
-    if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
+    if #bounds==2 then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
 
     if kk=!=QQ or o.RndTol==infinity then
@@ -357,35 +355,24 @@ createSOSModel = method(
     Options => {Verbose => false} )
 createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
     kk := coefficientRing ring f;
-
+    
     -- monomials in vvT
     vvT := entries(v* transpose v);
     mons := g -> first entries monomials g;
     K := sort \\ unique \\ flatten \\ mons \ flatten vvT;
-
-    -- A hash table with the coefficients (should be an easier way)
-    (mf,cf) := coefficients f ;
-    Hf := hashTable for i to numRows cf-1 list mf_(0,i) => sub(cf_(i,0),kk);
     
     -- Linear constraints: b
-    b := transpose matrix(kk,{for k in K list
-        if Hf#?k then Hf#k else 0});
-
+    b := transpose matrix(kk,{for k in K list coefficient(k,f)});
+    
     -- Linear constraints: A, B
     coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
     A := matrix(kk, for i to #K-1 list smat2vec(coeffMat(K_i, vvT),Scaling=>2) );
-
+    
     -- Consider search-parameters:
-    Bh := flatten for k to #K-1 list (
-        for i to #p-1 list (
-            mp := K#k*p_i;
-            if not Hf#?mp then continue;
-            (k,i) => -Hf#mp )
-        );
-    B := map(kk^#K,kk^#p,Bh);
-
+    B := map(kk^#K,kk^#p, (k,i) -> -coefficient(K#k*p_i, f) );
+    
     (C,Ai,Bi) := getImageModel(A,B,b);
-
+    
     return (C,Ai,Bi,A,B,b);
     )
 
