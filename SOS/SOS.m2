@@ -186,59 +186,53 @@ sosdec = (Q,mon) -> (
 solveSOS = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
  
-solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
+solveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     -- f is a polynomial to decompose
     -- p is a list of variables of f that are interpreted as parameters
     -- mon is a vector of monomials
     -- objFcn is a linear objective function for the SDP solver
     -- bounds can be empty or contain lower and upper bounds for the parameters
 
-    checkInputs := (mon,objFcn,bounds) -> (
+    checkInputs := (mon,bounds) -> (
         if numColumns mon > 1 then error("Monomial vector should be a column.");
         isMonomial := max(length \ terms \ flatten entries mon)==1;
         if not isMonomial then error("Vector must consist of monomials.");
-        if first degree objFcn > 1 then error("Only linear objective function allowed.");
         if not member(#bounds,{0,2}) then 
             error "ParBounds should be a list with two elements";
         );
 
     bounds := o.ParBounds;
-    checkInputs(mon,objFcn,bounds);
-    kk := coefficientRing ring f;
+    checkInputs(mon,bounds);
+    kk := coefficientRing ring F;
          
     -- build SOS model --     
-    (C,Ai,Bi,A,B,b) := createSOSModel(f,p,mon,Verbose=>o.Verbose);
+    (C,Ai,Bi,A,B,b) := createSOSModel(F,mon,Verbose=>o.Verbose);
 
     ndim := numRows C;
+    np := numRows objP;
 
-    if #p!=0 and objFcn!=0 then (
-        -- compute an optimal solution --
-        verbose("Solving SOS optimization problem...", o);
-        (objMon,objCoef) := coefficients objFcn;
-        objP := map(kk^#p,kk^1, (i,j) -> -coefficient(p_i, objFcn));
-        obj := objP || map(kk^#Ai,kk^1,i->0);
-        
-        if #bounds==2 then (
-            C = blkDiag(C,diagonalMatrix(-bounds#0),diagonalMatrix(bounds#1));
-            Ai = for i to #Ai-1 list blkDiag(Ai_i, map(kk^(2*#p), kk^(2*#p), j -> 0));
-            Bi = for i to #Bi-1 list blkDiag(Bi_i, 
-                map(kk^#p,kk^#p, (j,k) -> if j==k and j==i then 1_kk else 0_kk),
-                map(kk^#p,kk^#p, (j,k) -> if j==k and j==i then -1_kk else 0_kk));
+    obj := 
+        if o.TraceObj then
+            map(RR^(#Bi),RR^1,(i,j)-> -trace Bi#i) || map(RR^(#Ai),RR^1,(i,j)-> -trace Ai#i)
+        else
+            (-objP) || map(kk^#Ai,kk^1,{}); 
+    if obj==0 then verbose( "Solving SOS feasibility problem...", o)
+    else verbose("Solving SOS optimization problem...", o);
+
+    if np!=0 and #bounds==2 then (
+        C = blkDiag(C,diagonalMatrix(-bounds#0),diagonalMatrix(bounds#1));
+        Ai = for i to #Ai-1 list blkDiag(Ai_i, map(kk^(2*np), kk^(2*np), j -> 0));
+        Bi = for i to #Bi-1 list blkDiag(Bi_i, 
+            map(kk^np,kk^np, (j,k) -> if j==k and j==i then 1_kk else 0_kk),
+            map(kk^np,kk^np, (j,k) -> if j==k and j==i then -1_kk else 0_kk));
         );
-    )else if o.TraceObj then (
-        -- compute an optimal solution --
-        verbose("Solving SOS optimization problem...", o);
-        obj = map(RR^(#Bi),RR^1,(i,j)-> -trace Bi#i) || map(RR^(#Ai),RR^1,(i,j)-> -trace Ai#i);
-    )else (
-        -- compute a feasible solution --
-        verbose( "Solving SOS feasibility problem...", o);
-        obj = map(RR^(#Ai+#Bi),RR^1,i->0);
-    );
+
+
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (Q,X,);
     y := -my;
     if #bounds==2 then Q = Q^{0..ndim-1}_{0..ndim-1};
-    pvec0 := flatten entries y^(toList(0..#p-1));
+    pvec0 := flatten entries y^(toList(0..np-1));
 
     if kk=!=QQ or o.RndTol==infinity then
         return (Q,X,pvec0);
@@ -251,13 +245,19 @@ solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
     )
 
 -- Variants of solveSOS with fewer arguments
+solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
+    (F,objP) := parameterVector(f,p);
+    return solveSOS(F,objP,mon,o);
+    )
 solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> (
     R := ring f;
     kk := coefficientRing R;
+    (F,objP) := parameterVector(f,p,objFcn);
     if isQuotientRing R then error("Monomial vector must be provided in quotient rings.");
-    mon := choosemonp (f,p,Verbose=>o.Verbose);
+    mon := choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,mon,,);
-    (Q,X,pvec) := solveSOS(f,p,objFcn,mon,o);
+    (Q,X,pvec) := solveSOS(F,objP,mon,o);
+    mon = sub(mon,R);
     if Q===null then return (,mon,,);
     if kk===QQ then
         if o.RndTol==infinity or ring Q=!=QQ then
@@ -402,7 +402,15 @@ getImageModel = (A,B,b) -> (
     return (C,Ai,Bi);
     )
 
-parameterVector = (f,p) -> (
+parameterVector = method()
+parameterVector(RingElement,List,RingElement) := (f,p,objFcn) -> (
+    if first degree objFcn > 1 then error("Only linear objective function allowed.");
+    kk := coefficientRing ring f;
+    objP := map(kk^#p,kk^1, (i,j) -> coefficient(p_i, objFcn));
+    F := parameterVector(f,p);
+    return (F,objP);
+    )
+parameterVector(RingElement,List) := (f,p) -> (
     -- given a polynomial f = f_0 + \sum_i p_i * f_i
     -- the method returns the vector with the f_i's
     if #p==0 then return matrix{{f}};
