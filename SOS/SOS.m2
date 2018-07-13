@@ -42,6 +42,7 @@ export {
     "smat2vec",
     "vec2smat",
 --only for debugging
+    "parameterVector",
     "createSOSModel",
     "choosemonp",
     "project2linspace",
@@ -354,7 +355,12 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
 createSOSModel = method(
     Options => {Verbose => false} )
 createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
-    kk := coefficientRing ring f;
+    F := parameterVector(f,p);
+    return createSOSModel(F,v);
+    )
+createSOSModel(Matrix,Matrix) := o -> (F,v) -> (
+    kk := coefficientRing ring F;
+    np := numRows F - 1;
     
     -- monomials in vvT
     vvT := entries(v* transpose v);
@@ -362,14 +368,14 @@ createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
     K := sort \\ unique \\ flatten \\ mons \ flatten vvT;
     
     -- Linear constraints: b
-    b := transpose matrix(kk,{for k in K list coefficient(k,f)});
+    b := transpose matrix(kk,{for k in K list coefficient(k,F_(0,0)) });
     
     -- Linear constraints: A, B
     coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
     A := matrix(kk, for i to #K-1 list smat2vec(coeffMat(K_i, vvT),Scaling=>2) );
     
     -- Consider search-parameters:
-    B := map(kk^#K,kk^#p, (k,i) -> -coefficient(K#k*p_i, f) );
+    B := map(kk^#K,kk^np, (i,j) -> -coefficient(K#i, F_(j+1,0)) );
     
     (C,Ai,Bi) := getImageModel(A,B,b);
     
@@ -394,6 +400,18 @@ getImageModel = (A,B,b) -> (
         vec2smat(v_{k});
 
     return (C,Ai,Bi);
+    )
+
+parameterVector = (f,p) -> (
+    -- given a polynomial f = f_0 + \sum_i p_i * f_i
+    -- the method returns the vector with the f_i's
+    if #p==0 then return matrix{{f}};
+    R := ring f;
+    kk := coefficientRing R;
+    X := toList(set(gens R) - p);
+    S := kk(monoid[X]);
+    (m,F) := coefficients(f, Variables=>p, Monomials=>({1}|p));
+    return sub(F,S);
     )
 
 kernelGens = A -> (
@@ -431,34 +449,26 @@ vec2smat(Matrix) := o -> v -> matrix(ring v, vec2smat(flatten entries v,o))
 
 choosemonp = method(
     Options => {Verbose => false} )
-choosemonp(RingElement,List,ZZ) := o -> (f,p,d) -> (
-    if d<0 then error "degree cannot be negative";
-    R := ring f;
-    X := toList(set(gens R) - p);
-    degX := h -> sum for x in X list degree(x,h);
-    homog := isHomogeneous R and #set(degX \ terms f)==1;
-    mon := if homog then basis(d,R) else basis(0,d,R);
-    return transpose mon;
-    )
 choosemonp(RingElement,List) := o -> (f,p) -> (
+    F := parameterVector(f,p);
+    mon := choosemonp(F);
+    if mon===null then return;
+    return sub(mon,ring f);
+    )
+choosemonp(Matrix) := o -> (F) -> (
+     R := ring F;
+     n:= numgens R;
+     mons := g -> set first entries monomials g;
+     lm0 := mons F_(0,0);
      filterVerts := (verts) -> (
          -- only consider those without parameters (this is a hack!)
-         R := ring f;
-         p0 := apply(p,i->i=>0);
-         lm0 := set(apply(flatten entries (coefficients f)_0,i->(substitute(i,p0))));
          return select(verts, v -> member(R_v,lm0));
-     );
-     -- Get rid of parameters in polynomial:
-     X := gens ring f;
-     genpos := positions(X,i->not any(p,j->j==i));
-     ringf := QQ(monoid[X_genpos]);
-     n := #genpos;
-     p1 := apply(p,i->i=>1);
-     lmf := unique(apply(flatten entries (coefficients f)_0,i->(substitute(i,p1))));
+         );
+     lmf := sum \\ mons \ flatten entries F;
      falt := sum lmf;
      
      -- Get exponent-points for Newton polytope:
-     points := substitute(matrix (transpose exponents falt)_genpos,QQ);
+     points := substitute(matrix (transpose exponents falt),QQ);
      maxdeg := first degree falt;
      mindeg := floor first min entries (transpose points*matrix map(ZZ^n,ZZ^1,i->1));
      maxdegs := apply(entries points, i-> max i);
@@ -485,15 +495,12 @@ choosemonp(RingElement,List) := o -> (f,p) -> (
          return;
          );
 
-     -- Get candidate points from basis of f:
-     mon := flatten for k from mindeg to maxdeg list flatten entries basis(k, ringf);
-     cp := apply (mon, i -> flatten exponents (i));
+     -- Get candidate points
+     cp := pointsInBox(mindeg,maxdeg,mindegs,maxdegs);
      verbose("#candidate points: " | #cp, o);
-
-     -- Filter candidate points:
-     -- Only the even ones within the box of degrees[mindegs:maxdegs]:
-     cpf := select(cp,i-> all(i,even) and all(i-mindegs,j->j>=0) and all(maxdegs-i,j->j>=0)); 
-     verbose("#points (even and within box of polynomial degrees): " | #cpf, o);
+     -- Only the even ones
+     cpf := select(cp,i-> all(i,even)); 
+     verbose("#even points: " | #cpf, o);
      -- Drop points that do not live on the subspace: 
      cpf2 := select(cpf,i-> matrix{i-shift}*basVtrans==0);
      verbose("#points in subspace of exponent-points: " | #cpf2, o);
@@ -501,16 +508,28 @@ choosemonp(RingElement,List) := o -> (f,p) -> (
      -- Find points within the polytope:
      lexponents := select(cpf2, i-> 
            max flatten entries (dualpolytope * ((T * transpose matrix {i-shift})||1)) <=0)/2;
-     lmSOS := for i in lexponents list
-         product(n, j->(
-            assert (denominator i#j==1);
-            (ring f)_(genpos#j)^(numerator i#j) 
-            ));
+     isInteger := l -> denominator l == 1;
+     assert all(flatten lexponents, isInteger );
+     lexponents = apply(lexponents, i -> numerator \ i);
+     lmSOS := for i in lexponents list R_i;
      verbose("#points inside Newton polytope: " | #lmSOS, o);
 
      if #lmSOS==0 then return;
      return matrix transpose {lmSOS};
      )
+
+pointsInBox = (mindeg,maxdeg,mindegs,maxdegs) -> (
+    -- integer vectors within specified bounds
+    n := #mindegs;
+    -- Get candidate points
+    local x; x= symbol x;
+    R0 := QQ(monoid[x_0..x_(n-1)]);
+    mon := flatten entries basis(mindeg,maxdeg,R0);
+    e := apply (mon, i -> flatten exponents i);
+    -- Only those within the box of degrees[mindegs:maxdegs]:
+    e = select(e,i-> all(i-mindegs,j->j>=0) and all(maxdegs-i,j->j>=0)); 
+    return e;
+    )
 
 project2linspace = (A,b,x0) -> (
      -- cast into QQ (necessary class to compute inverse)
