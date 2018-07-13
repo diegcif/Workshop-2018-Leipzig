@@ -200,7 +200,7 @@ doc /// --solveSOS
         (solveSOS,RingElement)
         (solveSOS,RingElement,List)
         (solveSOS,RingElement,List,RingElement)
-        (solveSOS,RingElement,List,RingElement,ZZ)
+        (solveSOS,RingElement,List,RingElement,Matrix)
     Headline
         solve a sum-of-squares problem
     Usage

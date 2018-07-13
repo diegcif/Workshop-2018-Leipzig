@@ -47,7 +47,6 @@ export {
     "project2linspace",
     "toRing",
     "changeRingField",
-    "changePolyField",
     "changeMatrixField",
 --Method options
     "RndTol",
@@ -186,16 +185,18 @@ sosdec = (Q,mon) -> (
 solveSOS = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
  
-solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
+solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
     -- f is a polynomial to decompose
     -- p is a list of variables of f that are interpreted as parameters
-    -- d is a degree bound for the monomials
+    -- mon is a vector of monomials
     -- objFcn is a linear objective function for the SDP solver
     -- bounds can be empty or contain upper and lower bounds for the parameters
+    if numColumns mon > 1 then error("Monomial vector should be a column.");
+    isMonomial := max(length \ terms \ flatten entries mon)==1;
+    if not isMonomial then error("Vector must consist of monomials.");
     bounds := o.ParBounds;
     R := ring f;
     if first degree objFcn > 1 then error("Only linear objective function allowed.");
-    if isQuotientRing R and d<0 then error("Degree bound is required in quotient rings.");
     parBounded := false;
     if #bounds==2 then (
         lB := promote(bounds#0,QQ);
@@ -207,9 +208,6 @@ solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
     kk := coefficientRing R;
          
     -- build SOS model --     
-    mon := if isQuotientRing R then choosemonp (f,p,d,Verbose=>o.Verbose)
-        else choosemonp (f,p,Verbose=>o.Verbose);
-    if mon===null then return (,mon,,);
     (C,Ai,Bi,A,B,b) := createSOSModel(f,p,mon,Verbose=>o.Verbose);
 
     ndim := numRows C;
@@ -238,39 +236,46 @@ solveSOS(RingElement,List,RingElement,ZZ) := o -> (f,p,objFcn,d) -> (
         obj = map(RR^(#Ai+#Bi),RR^1,i->0);
     );
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
-    if Q===null then return (Q,mon,X,);
+    if Q===null then return (Q,X,);
     y := -my;
     if parBounded then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..#p-1));
 
-    if kk=!=QQ then
-        return (Q,mon,X,pvec0);
-    if o.RndTol==infinity then
-        return (Q,changeMatrixField(RR,mon),X,pvec0);
+    if kk=!=QQ or o.RndTol==infinity then
+        return (Q,X,pvec0);
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,o.RndTol);
-    if ok then return (Qp,mon,X,pVec);
+    if ok then return (Qp,X,pVec);
     print "rounding failed, returning real solution";
-    return (Q,changeMatrixField(RR,mon),X,pvec0);
+    return (Q,X,pvec0);
     )
 
 -- Variants of solveSOS with fewer arguments
-solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> 
-    solveSOS(f,p,objFcn,-1,o)
+solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> (
+    R := ring f;
+    kk := coefficientRing R;
+    if isQuotientRing R then error("Monomial vector must be provided in quotient rings.");
+    mon := choosemonp (f,p,Verbose=>o.Verbose);
+    if mon===null then return (,mon,,);
+    (Q,X,pvec) := solveSOS(f,p,objFcn,mon,o);
+    if Q===null then return (,mon,,);
+    if kk===QQ then
+        if o.RndTol==infinity or ring Q=!=QQ then
+            mon = changeMatrixField(RR,mon);
+    return (Q,mon,X,pvec);
+    )
 solveSOS(RingElement,List) := o -> (f,p) -> 
     solveSOS(f,p,0_(ring f),o)
 solveSOS(RingElement) := o -> (f) -> 
     drop(solveSOS(f,{},o),-1)
 
-solveSOS(RingElement,List,ZZ) := o -> (f,p,d) -> 
-    solveSOS(f,p,0_(ring f),d,o)
-solveSOS(RingElement,ZZ) := o -> (f,d) -> 
-    drop(solveSOS(f,{},0_(ring f),d,o),-1)
+solveSOS(RingElement,List,Matrix) := o -> (f,p,mon) -> 
+    solveSOS(f,p,0_(ring f),mon,o)
+solveSOS(RingElement,Matrix) := o -> (f,mon) -> 
+    drop(solveSOS(f,{},0_(ring f),mon,o),-1)
 
 changeRingField = (kk,R) -> kk(monoid[gens R])
-
-changePolyField = (kk,f) -> toRing(changeRingField(kk,ring f), f)
 
 changeMatrixField = (kk, M) -> (
     -- M is a matrix whose entries are polynomials whose coefficient
@@ -280,7 +285,6 @@ changeMatrixField = (kk, M) -> (
     matrix for row in e list(
 	for entry in row list(
 	    toRing(R, entry))))
-
 
 toRing = method ()
 toRing (Ring, RingElement) := (S,f) -> (
@@ -1322,7 +1326,8 @@ checkSosInIdeal = solver -> (
         S := ring s;
         if coefficientRing S===QQ then
             return (sumSOS(s) % ideal h) == 0;
-        return norm(sumSOS(s) % sub(ideal h, S)) < 1e-8;
+        tol := 1e-6;
+        return norm(sumSOS(s) % sub(ideal h, S)) < tol;
         );
 
     -- Test 0
