@@ -9,8 +9,8 @@ document {
     EXAMPLE lines ///
       R = QQ[x,y];
       f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y
-      (Q,mon,X) = solveSOS f;
-      s = sosdec(Q,mon)
+      (mon,Q,X,tval) = solveSOS f;
+      s = sosdec(mon,Q)
     ///,
     "We can check with the command ", TT "sumSOS", " whether the found decomposition matches the original polynomial",
     EXAMPLE lines ///
@@ -20,20 +20,20 @@ document {
     HEADER5 "SOS with parameters",
     "If the coefficients of the polynomial are linearly parameterized, we can also search for parameters which render a polynomial to be a SOS. In the following example, the variable ", TT "t", " will be treated as a free parameter.",
     EXAMPLE lines ///
-      R = QQ[x,t];
+      R = QQ[x][t];
       f = (t-1)*x^4+1/2*t*x+1;
-      (Q,mon,X,tval) = solveSOS (f,{t});
-      sosdec(Q,mon)
+      (mon,Q,X,tval) = solveSOS (f);
+      sosdec(mon,Q)
       tval
     ///,
 
     HEADER5 "SOS with parameter optimization",
     "Semidefinite programming also allows to optimize a linear functional of the decision variables. As an example we compute a lower bound of a polynomial by minimizing its constant term. Since there is a tradeoff between rounding and optimality, we specify the required rounding precision as an optional input argument.",
     EXAMPLE lines ///
-      R = QQ[x,t];
+      R = QQ[x][t];
       f = x^4 - 2*x + t;
-      (Q,mon,X,tval) = solveSOS (f,{t},t,RndTol=>3);
-      sosdec(Q,mon)
+      (mon,Q,X,tval) = solveSOS (f,t);
+      sosdec(mon,Q)
       tval
     ///,
     }
@@ -166,7 +166,7 @@ doc /// --sosdec
     Headline
         SOS decomposition of a polynomial
     Usage
-        s = sosdec(Q,mon)
+        s = sosdec(mon,Q)
     Inputs
         Q:Matrix
           the rational $n\times n$ Gram matrix of the polynomial f
@@ -184,8 +184,8 @@ doc /// --sosdec
       Example
         R = QQ[x,y];
         f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
-        (Q,mon,X) = solveSOS f;
-        s = sosdec(Q,mon)
+        (mon,Q,X,tval) = solveSOS f;
+        s = sosdec(mon,Q)
         sumSOS(s)
       Code
       Pre
@@ -198,23 +198,24 @@ doc /// --solveSOS
     Key
         solveSOS
         (solveSOS,RingElement)
-        (solveSOS,RingElement,List)
-        (solveSOS,RingElement,List,RingElement)
-        (solveSOS,RingElement,List,RingElement,Matrix)
+        (solveSOS,RingElement,RingElement)
+        (solveSOS,RingElement,Matrix)
+        (solveSOS,RingElement,RingElement,Matrix)
     Headline
         solve a sum-of-squares problem
     Usage
-        (Q,mon,X) = solveSOS f
-        (Q,mon,X,tval) = solveSOS(f,p,objFun)
-        (Q,mon,X,tval) = solveSOS(f,p,objFun,bounds)
+        (mon,Q,X,tval) = solveSOS(f)
+        (mon,Q,X,tval) = solveSOS(f,objFun)
+        (Q,X,tval) = solveSOS(f,mon)
+        (Q,X,tval) = solveSOS(f,objFun,mon)
     Inputs
         f:RingElement
-          a polynomial with coefficients in $\QQ$
-        p:List
-          of parameters (optional)
+          a polynomial
         objFun:RingElement
-          a polynomial with coefficients in $\QQ$ (optional)
-        bounds:List
+          a linear function of the parameters (optional)
+        mon:Matrix
+          a vector of monomials (optional)
+        ParBounds:List
           a lower and upper bound for the parameters (optional)
     Outputs
         Q:Matrix
@@ -237,15 +238,15 @@ doc /// --solveSOS
       Example
         R = QQ[x,y];
         f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
-        (Q,mon,X) = solveSOS f
+        (mon,Q,X,tval) = solveSOS f
         transpose(mon)*Q*mon - f
       Text
         The method can also solve parametric SOS problems that depend affinely of some decision variables. 
         For instance, we can find an SOS lower bound for the dehomogenized Motzkin polynomial:
       Example
-        R = QQ[x,z,t];
+        R = QQ[x,z][t];
         f = x^4+x^2+z^6-3*x^2*z^2-t;
-        (Q,mon,X,tval) = solveSOS (f,{t},-t,RndTol=>12);
+        (mon,Q,X,tval) = solveSOS (f,-t,RndTol=>12);
         tval
       Code
       Pre
@@ -333,12 +334,10 @@ doc /// --choosemonp
     Headline
         create list of monomials based on the Newton polytope
     Usage
-        (lmf, lmsos) = choosemonp(f,p)
+        (lmf, lmsos) = choosemonp(f)
     Inputs
         f:RingElement
           a polynomial
-        p:List
-          of parameters
     Outputs
         lmf:List
           of monomials of f
@@ -382,16 +381,14 @@ doc /// --project2linspace
 doc /// --createSOSModel
     Key
         createSOSModel
-        (createSOSModel,RingElement,List,Matrix)
+        (createSOSModel,RingElement,Matrix)
     Headline
-        model of the Gram matrix representations of a polynomial
+        space of Gram matrices of a polynomial (for developers)
     Usage
-        (C,Ai,Bi,A,B,b) = createSOSModel(f,p)
+        (C,Ai,Bi,A,B,b) = createSOSModel(f,mon)
     Inputs
         f:RingElement
           a polynomial
-        p:List
-          of parameters
         mon:Matrix
           a vector of monomials
     Outputs
@@ -416,8 +413,9 @@ doc /// --createSOSModel
         $A q = b$
         where $q$ is the @TO2 {smat2vec,"vectorization"}@ of $Q$.
 
-        If a vector of parameters $p$ is given, then the image form is
+        For parametric SOS problems the image form is
         $Q = C - \sum_i y_i A_i - \sum_j p_j B_j$,
+        where $p_j$ are the parameters,
         and the kernel form is
         $A q + B p = b$.
       Code

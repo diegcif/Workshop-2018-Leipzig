@@ -165,7 +165,7 @@ verbose = (s,o) -> if o.Verbose then print s
 -- solveSOS
 --###################################
 
-sosdec = (Q,mon) -> (
+sosdec = (mon,Q) -> (
     if mon===null or Q===null then return;
     (L,D,P,err) := PSDdecomposition(Q);
     if err != 0 then (
@@ -181,14 +181,12 @@ sosdec = (Q,mon) -> (
     return sosPoly(ring mon,g,d);
     )
 
--- This is the main method to decompose a polynomial as a 
--- sum of squares using an SDP solver.
-solveSOS = method(
+-- internal way to call solveSOS
+rawSolveSOS = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
  
-solveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
+rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     -- f is a polynomial to decompose
-    -- p is a list of variables of f that are interpreted as parameters
     -- mon is a vector of monomials
     -- objFcn is a linear objective function for the SDP solver
     -- bounds can be empty or contain lower and upper bounds for the parameters
@@ -244,49 +242,47 @@ solveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     return (Q,X,pvec0);
     )
 
--- Variants of solveSOS with fewer arguments
-solveSOS(RingElement,List,RingElement,Matrix) := o -> (f,p,objFcn,mon) -> (
-    (F,objP) := parameterVector(f,p);
-    return solveSOS(F,objP,mon,o);
-    )
-solveSOS(RingElement,List,RingElement) := o -> (f,p,objFcn) -> (
-    R := ring f;
-    kk := coefficientRing R;
-    (F,objP) := parameterVector(f,p,objFcn);
+rawSolveSOS(Matrix,Matrix) := o -> (F,objP) -> (
     mon := choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,mon,,);
-    (Q,X,pvec) := solveSOS(F,objP,mon,o);
-    mon = sub(mon,R);
-    if Q===null then return (,mon,,);
-    if kk===QQ then
-        if o.RndTol==infinity or ring Q=!=QQ then
-            mon = changeMatrixField(RR,mon);
-    return (Q,mon,X,pvec);
+    (Q,X,pvec) := rawSolveSOS(F,objP,mon,o);
+    mon = checkMonField(mon,F,Q,o.RndTol);
+    return (mon,Q,X,pvec);
     )
-solveSOS(RingElement,List) := o -> (f,p) -> 
-    solveSOS(f,p,0_(ring f),o)
-solveSOS(RingElement) := o -> (f) -> 
-    drop(solveSOS(f,{},o),-1)
+rawSolveSOS(Matrix) := o -> (F) -> 
+    rawSolveSOS(F,zeros(QQ,numRows F-1,1),o)
 
-solveSOS(RingElement,List,Matrix) := o -> (f,p,mon) -> 
-    solveSOS(f,p,0_(ring f),mon,o)
+checkMonField = (mon,F,Q,RndTol) -> (
+    if Q===null then return mon;
+    if coefficientRing ring F===QQ then
+        if RndTol==infinity or ring Q=!=QQ then
+            return changeMatrixField(RR,mon);
+    return mon;
+    )
+
+-- This is the main method to decompose a polynomial as a 
+-- sum of squares using an SDP solver.
+solveSOS = method(
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
+
+solveSOS(RingElement,RingElement,Matrix) := o -> (f,objFcn,mon) -> (
+    (F,objP) := parameterVector(f,objFcn);
+    return rawSolveSOS(F,objP,mon,o);
+    )
 solveSOS(RingElement,Matrix) := o -> (f,mon) -> 
-    drop(solveSOS(f,{},0_(ring f),mon,o),-1)
+    solveSOS(f,0_(ring f),mon,o)
 
-solveSOS(Matrix,Matrix) := o -> (F,objP) -> (
-    R := ring F;
-    kk := coefficientRing R;
+solveSOS(RingElement,RingElement) := o -> (f,objFcn) -> (
+    (F,objP) := parameterVector(f,objFcn);
     mon := choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,mon,,);
-    (Q,X,pvec) := solveSOS(F,objP,mon,o);
-    if Q===null then return (,mon,,);
-    if kk===QQ then
-        if o.RndTol==infinity or ring Q=!=QQ then
-            mon = changeMatrixField(RR,mon);
-    return (Q,mon,X,pvec);
+    (Q,X,pvec) := rawSolveSOS(F,objP,mon,o);
+    mon = checkMonField(mon,F,Q,o.RndTol);
+    return (mon,Q,X,pvec);
     )
-solveSOS(Matrix) := o -> (F) -> 
-    solveSOS(F,zeros(QQ,numRows F-1,1),o)
+solveSOS(RingElement) := o -> (f) -> 
+    solveSOS(f,0_(ring f),o)
+
 
 changeRingField = (kk,R) -> kk(monoid[gens R])
 
@@ -368,8 +364,8 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
 
 createSOSModel = method(
     Options => {Verbose => false} )
-createSOSModel(RingElement,List,Matrix) := o -> (f,p,v) -> (
-    F := parameterVector(f,p);
+createSOSModel(RingElement,Matrix) := o -> (f,v) -> (
+    F := parameterVector(f);
     return createSOSModel(F,v);
     )
 createSOSModel(Matrix,Matrix) := o -> (F,v) -> (
@@ -417,24 +413,24 @@ getImageModel = (A,B,b) -> (
     )
 
 parameterVector = method()
-parameterVector(RingElement,List,RingElement) := (f,p,objFcn) -> (
-    if first degree objFcn > 1 then error("Only linear objective function allowed.");
-    kk := coefficientRing ring f;
-    objP := map(kk^#p,kk^1, (i,j) -> coefficient(p_i, objFcn));
-    F := parameterVector(f,p);
-    return (F,objP);
-    )
-parameterVector(RingElement,List) := (f,p) -> (
+parameterVector(RingElement,RingElement) := (f,objFcn) -> (
     -- given a polynomial f = f_0 + \sum_i p_i * f_i
     -- the method returns the vector with the f_i's
-    if #p==0 then return matrix{{f}};
     R := ring f;
     kk := coefficientRing R;
-    X := toList(set(gens R) - p);
-    S := kk(monoid[X]);
-    (m,F) := coefficients(f, Variables=>p, Monomials=>({1}|p));
-    return sub(F,S);
+    if isField kk then 
+        return (matrix{{f}},zeros(kk,0,1));
+    if first degree f > 1 then 
+        error("Polynomial should depend affinely on the parameters.");
+    p := gens R;
+    F := matrix for t in {1_R}|p list {coefficient(t,f)};
+    if degree objFcn > {1,0} then 
+        error("Objective should be a linear function of the parameters.");
+    kk = coefficientRing kk;
+    objP := matrix for t in p list {sub(coefficient(t,objFcn),kk)};
+    return (F,objP);
     )
+parameterVector(RingElement) := (f) -> first parameterVector(f,0_(ring f))
 
 kernelGens = A -> (
     if ring A === QQ or ring A === ZZ then
@@ -473,8 +469,8 @@ vec2smat(Matrix) := o -> v -> matrix(ring v, vec2smat(flatten entries v,o))
 
 choosemonp = method(
     Options => {Verbose => false} )
-choosemonp(RingElement,List) := o -> (f,p) -> (
-    F := parameterVector(f,p);
+choosemonp(RingElement) := o -> (f) -> (
+    F := parameterVector(f);
     mon := choosemonp(F);
     if mon===null then return;
     return sub(mon,ring f);
@@ -668,7 +664,6 @@ makeMultiples = (h, D, homog) -> (
         error "increase degree bound";
     R := ring h#0;
     -- compute monomials
-    p := symbol p;
     mon := for i to #h-1 list (
         di := D - first degree h#i;
         b := if homog then basis(di,R) else basis(0,di,R);
@@ -692,12 +687,12 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
     homog := all(h, isHomogeneous);
     (H,m) := makeMultiples(h, D, homog);
     F := matrix transpose {{0}|H};
-    (Q,mon,X,tval) := solveSOS (F, o);
+    (mon,Q,X,tval) := rawSolveSOS (F, o);
     if Q===null or Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
 	);
-    a := sosdec(Q,mon);
+    a := sosdec(mon,Q);
     if a===null then (
         print("no sos polynomial in degree "|D);
         return (null,null);
@@ -730,9 +725,9 @@ sosdecTernary(RingElement) := o -> (f) -> (
         di = first degree fi;
         S = append(S,Si);
         );
-    (Q,mon,X) := solveSOS fi;
+    (mon,Q,X,tval) := rawSolveSOS matrix{{fi}};
     if Q===null then return;
-    Si = sosdec(Q,mon);
+    Si = sosdec(mon,Q);
     if Si===null then return;
     S = append(S,Si);
     nums := for i to #S-1 list if odd i then continue else S#i;
@@ -775,7 +770,7 @@ rawLowerBound(RingElement,Matrix) := o -> (f,H) -> (
     np := numRows H;
     F := matrix{{f},{-1}} || H;
     objP := matrix{{-1}} || zeros(kk,np,1);
-    (Q, mon, X, tval) := solveSOS(F,objP, o');
+    (mon,Q,X,tval) := rawSolveSOS(F,objP, o');
     if Q===null then return (,);
     bound := first tval;
     x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
@@ -1252,8 +1247,7 @@ checkSolveSOS = solver -> (
     local z; z= symbol z;
     local w; w= symbol w;
     local t; t= symbol t;
-    local tval;
-    isGram := (f,Q,mon) -> (
+    isGram := (f,mon,Q) -> (
         if Q===null then return false;
         e := eigenvalues(Q,Hermitian=>true);
         tol := 1e-8;
@@ -1267,41 +1261,41 @@ checkSolveSOS = solver -> (
     -- Test 0
     R := QQ[x,y];
     f := 4*x^4+y^4;
-    (Q,mon,X) := solveSOS(f,Solver=>solver);
-    t0 := isGram(f,Q,mon);
+    (mon,Q,X,tval) := solveSOS(f,Solver=>solver);
+    t0 := isGram(f,mon,Q);
 
     -- Test 1
     f = 2*x^4+5*y^4-2*x^2*y^2+2*x^3*y;
-    (Q,mon,X) = solveSOS(f,Solver=>solver);
-    t1 := isGram(f,Q,mon);
+    (mon,Q,X,tval) = solveSOS(f,Solver=>solver);
+    t1 := isGram(f,mon,Q);
 
     -- Test 2
     R = QQ[x,y,z];
     f = x^4+y^4+z^4-4*x*y*z+x+y+z+3;
-    (Q,mon,X) = solveSOS(f,Solver=>solver);
-    t2 := isGram(f,Q,mon);
+    (mon,Q,X,tval) = solveSOS(f,Solver=>solver);
+    t2 := isGram(f,mon,Q);
     
     -- Test 3
     R = QQ[x,y,z,w];
     f = 2*x^4 + x^2*y^2 + y^4 - 4*x^2*z - 4*x*y*z - 2*y^2*w + y^2 - 2*y*z + 8*z^2 - 2*z*w + 2*w^2;
-    (Q,mon,X) = solveSOS(f,Solver=>solver);
-    t3 := isGram(f,Q,mon);
+    (mon,Q,X,tval) = solveSOS(f,Solver=>solver);
+    t3 := isGram(f,mon,Q);
 
     -- Test 4
-    R = QQ[x,z,t];
+    R = QQ[x,z][t];
     f = x^4+x^2+z^6-3*x^2*z^2-t;
-    (Q,mon,X,tval) = solveSOS (f,{t},-t,RndTol=>12,Solver=>solver);
+    (mon,Q,X,tval) = solveSOS (f,-t,RndTol=>12,Solver=>solver);
     t4 := ( tval#0 === -729/4096 ) and ( sub(f,t=>tval#0) == transpose(mon)*Q*mon );
 
     ---------------BAD CASES1---------------
     -- Test 5
-    R = QQ[x,y,t];
+    R = QQ[x,y][t];
     f = x^4*y^2 + x^2*y^4 - 3*x^2*y^2 + 1; --Motzkin
-    (Q,mon,X) = solveSOS(f,Solver=>solver); 
+    (mon,Q,X,tval) = solveSOS(f,Solver=>solver); 
     t5 := ( Q === null );
 
     -- Test 6
-    (Q,mon,X,tval) = solveSOS(f-t,{t},-t, Solver=>solver); 
+    (mon,Q,X,tval) = solveSOS(f-t,-t, Solver=>solver); 
     t6 := ( Q === null );
 
     results := {t0,t1,t2,t3,t4,t5,t6};
@@ -1520,7 +1514,7 @@ TEST /// --sosdec
     Q=matrix{{1,-1/2,1},{-1/2,1,-1/2},{1,-1/2,1}}
     Q=promote(Q,QQ)
     mon=matrix{{x^3},{x^2*z},{y*z^2}}
-    f=sosdec(Q,mon)
+    f=sosdec(mon,Q)
     assert(f=!=null and sumSOS f==transpose mon * Q *mon)
     -- boundary cases:
     assert( sosdec(  ,mon) === null )
@@ -1528,35 +1522,37 @@ TEST /// --sosdec
 ///
 
 TEST /// --choosemonp
-    R = QQ[x,y,t];
+    R = QQ[x,y];
     f = x^4+2*x*y-x+y^4
-    lmsos = choosemonp(f,{})
+    lmsos = choosemonp(f)
     assert( lmsos === null )
-    lmsos = choosemonp(f-t,{t})
+    R = QQ[x,y][t];
+    f = x^4+2*x*y-x+y^4
+    lmsos = choosemonp(f-t)
     assert( ring lmsos===R and numRows lmsos == 6 )
     
-    R = RR[x,y,t];
+    R = RR[x,y][t];
     f = x^4+2*x*y-x+y^4
-    lmsos = choosemonp(f-t,{t})
+    lmsos = choosemonp(f-t)
     assert( ring lmsos===R and numRows lmsos == 6 )
 ///
 
 TEST /// --createSOSModel
     eval = (Q,v) -> (transpose v * Q * v)_(0,0)
     
-    R = QQ[x,t];
+    R = QQ[x][t];
     f = x^4 - 2*x + t;
     mon = matrix{{1},{x},{x^2}}
-    (C,Ai,Bi,A,B,b) = createSOSModel(f,{t},mon)
+    (C,Ai,Bi,A,B,b) = createSOSModel(f,mon)
     assert( eval(C,mon) == x^4 - 2*x )
     assert( #Ai==1 and eval(Ai#0,mon) == 0 )
     assert( #Bi==1 and eval(Bi#0,mon) == 1 )
     
     equal = (f1,f2) -> norm(f1-f2) < 1e-8;
-    R = RR[x,t];
+    R = RR[x][t];
     f = x^4 - 2*x + t;
     mon = matrix{{1},{x},{x^2}}
-    (C,Ai,Bi,A,B,b) = createSOSModel(f,{t},mon)
+    (C,Ai,Bi,A,B,b) = createSOSModel(f,mon)
     assert( equal(eval(C,mon), x^4 - 2*x) )
     assert( #Ai==1 and equal(eval(Ai#0,mon), 0) )
     assert( #Bi==1 and equal(eval(Bi#0,mon), 1) )
