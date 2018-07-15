@@ -45,15 +45,20 @@ document {
 doc /// --SOSPoly
     Key
         SOSPoly
-	(ring, SOSPoly)
-	(gens, SOSPoly)
-	(coefficients, SOSPoly)
-	(length, SOSPoly)
-	(substitute, SOSPoly, Ring)
-	(symbol +, SOSPoly, SOSPoly)
-	(symbol *, SOSPoly, SOSPoly)
-	(symbol *, Number, SOSPoly)
-	(symbol ==, SOSPoly, SOSPoly)
+        sosPoly
+        (ring, SOSPoly)
+        (gens, SOSPoly)
+        (coefficients, SOSPoly)
+        (length, SOSPoly)
+        (net, SOSPoly)
+        (substitute, SOSPoly, Ring)
+        (symbol +, SOSPoly, SOSPoly)
+        (symbol *, SOSPoly, SOSPoly)
+        (symbol *, Number, SOSPoly)
+        (symbol ^, SOSPoly, ZZ)
+        (symbol ==, SOSPoly, SOSPoly)
+        (symbol ==, SOSPoly, RingElement)
+        (symbol ==, RingElement, SOSPoly)
     Headline
         A type to store SOS decompositions of polynomials
     Description
@@ -135,6 +140,7 @@ doc /// --cleanSOS
 doc /// --sumSOS
     Key
         sumSOS
+        (sumSOS,SOSPoly)
     Headline
         expansion of a weighted SOS decomposition
     Usage

@@ -57,8 +57,7 @@ export {
     "TraceObj",
     "EigTol",
     "Scaling",
-    "ParBounds",
-    "sos"
+    "ParBounds"
 }
 
 --##########################################################################--
@@ -418,8 +417,11 @@ parameterVector(RingElement,RingElement) := (f,objFcn) -> (
     -- the method returns the vector with the f_i's
     R := ring f;
     kk := coefficientRing R;
-    if isField kk then 
+    if isField kk then (
+        if objFcn!=0 then 
+            error "Objective must be zero if there are no parameters.";
         return (matrix{{f}},zeros(kk,0,1));
+        );
     if first degree f > 1 then 
         error("Polynomial should depend affinely on the parameters.");
     p := gens R;
@@ -751,37 +753,31 @@ rank1factor(Matrix) := o -> (X) -> (
     return retval;
     )
 
-rawLowerBound = method(
-     Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
-rawLowerBound(RingElement,Matrix) := o -> (f,H) -> (
-    -- sos lower bound for the polynomial f
-    getSolution := (x,mon) -> (
-        if x===null then return {};
-        if x#0<0 then x = -x;
-        for i to numRows mon-1 list (
-                y := mon_(i,0);
-                if first degree y!=1 then continue;
-                y => x_i )
-        );
-    o' := new OptionTable from
-        {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
-    R := ring f;
-    kk := coefficientRing R;
-    np := numRows H;
-    F := matrix{{f},{-1}} || H;
-    objP := matrix{{-1}} || zeros(kk,np,1);
-    (mon,Q,X,tval) := rawSolveSOS(F,objP, o');
-    if Q===null then return (,);
-    bound := first tval;
-    x := if X=!=null then rank1factor(X,EigTol=>o.EigTol) else null;
-    mon = matrix(R, applyTable(entries mon, liftMonomial_R));
-    sol := getSolution(x,mon);
-    return (bound, sol);
+recoverSolution = (mon,X,tol) -> (
+    if X===null then return {};
+    x := rank1factor(X,EigTol=>tol);
+    if x===null then return {};
+    if x#0<0 then x = -x;
+    sol := for i to numRows mon-1 list (
+        y := mon_(i,0);
+        if sum degree y!=1 then continue;
+        y => x_i );
+    return sol;
     )
 
 lowerBound = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
-lowerBound(RingElement) := o -> (f) -> rawLowerBound(f,zeros(ring f,0,1),o)
+lowerBound(RingElement) := o -> (f) -> (
+    -- sos lower bound for the polynomial f
+    o' := new OptionTable from
+        {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
+    F := matrix{{f},{-1}};
+    objP := matrix{{-1}};
+    (mon,Q,X,bound) := rawSolveSOS(F,objP, o');
+    if Q===null then return (,);
+    sol := recoverSolution(mon,X,o.EigTol);
+    return (bound#0, sol);
+    )
 
 -- Minimize a polynomial on an algebraic set using SDP relaxations:
 lasserreHierarchy = method(
@@ -794,13 +790,16 @@ lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
         error "increase degree bound";
     if all(h|{f}, isHomogeneous) then
         error "problem is homogeneous";
-    R := ring f;
+    o' := new OptionTable from
+        {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     (H,m) := makeMultiples(h, D, false);
-    H = matrix transpose {H};
-    (bound,sol) := rawLowerBound(f,H,o);
-    if bound===null then return (,);
-    sol = for p in sol list sub(p#0,R)=>p#1;
-    return (bound,sol);
+    F := matrix{{f},{-1}} || matrix transpose{H};
+    objP := matrix{{-1}} || zeros(ZZ,#H,1);
+    mon := transpose basis(0,D//2,ring f);
+    (Q,X,bound) := rawSolveSOS(F,objP,mon, o');
+    if Q===null then return (,);
+    sol := recoverSolution(mon,X,o.EigTol);
+    return (bound#0,sol);
     )
 
 --###################################
@@ -1410,14 +1409,14 @@ checkLasserreHierarchy = solver -> (
 
     --- Test 1
     R = QQ[x,y];
-    f = -y;
+    f = y;
     h1 = y-x^2;
     (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
     t1 := minb=!=null and (abs(minb) < tol);
     
     --- Test 2
     R = RR[x,y];
-    f = -y;
+    f = y;
     h1 = y-pi*x^2;
     (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
     t2 := minb=!=null and (abs(minb) < tol);
