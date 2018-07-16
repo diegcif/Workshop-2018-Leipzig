@@ -661,7 +661,7 @@ blkDiag = args -> (
 makeMultiples = (h, D, homog) -> (
     -- h is a list of polynomials
     -- multiplies each hi with monomials up to degree D
-    if #h==0 then error "list of polynomials is empty";
+    if #h==0 then return ({},{});
     if D < max\\first\degree\h then
         error "increase degree bound";
     R := ring h#0;
@@ -769,14 +769,10 @@ lowerBound = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
 lowerBound(RingElement) := o -> (f) -> (
     -- sos lower bound for the polynomial f
-    o' := new OptionTable from
-        {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
-    F := matrix{{f},{-1}};
-    objP := matrix{{-1}};
-    (mon,Q,X,bound) := rawSolveSOS(F,objP, o');
-    if Q===null then return (,);
-    sol := recoverSolution(mon,X,o.EigTol);
-    return (bound#0, sol);
+    D := first degree f;
+    if odd D then error "polynomial has odd degree";
+    (bound,sol) := lasserreHierarchy(f,{},D,o);
+    return (bound, sol);
     )
 
 -- Minimize a polynomial on an algebraic set using SDP relaxations:
@@ -785,18 +781,30 @@ lasserreHierarchy = method(
 lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
     -- Lasserre hierarchy for the problem
     -- min f(x) s.t. h(x)=0
-    if odd D then error "D must be even";
+    
+    -- check inputs
+    if odd D then error "degree bound must be even";
     if D < max\\first\degree\(h|{f}) then
         error "increase degree bound";
     if all(h|{f}, isHomogeneous) then
         error "problem is homogeneous";
+    
+    -- prepare input
+    (H,m) := makeMultiples(h, D, false);
+    F := matrix transpose {{f,-1}|H};
+    objP := matrix{{-1}} || zeros(ZZ,#H,1);
+
+    -- call solveSOS
     o' := new OptionTable from
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
-    (H,m) := makeMultiples(h, D, false);
-    F := matrix{{f},{-1}} || matrix transpose{H};
-    objP := matrix{{-1}} || zeros(ZZ,#H,1);
-    mon := transpose basis(0,D//2,ring f);
-    (Q,X,bound) := rawSolveSOS(F,objP,mon, o');
+    R := ring F;
+    if isQuotientRing R then (
+        mon := transpose basis(0,D//2,R);
+        (Q,X,bound) := rawSolveSOS(F,objP,mon,o');
+    )else
+        (mon,Q,X,bound) = rawSolveSOS(F,objP,o');
+    
+    -- recover
     if Q===null then return (,);
     sol := recoverSolution(mon,X,o.EigTol);
     return (bound#0,sol);
