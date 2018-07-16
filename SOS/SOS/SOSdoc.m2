@@ -677,10 +677,14 @@ doc /// --lowerBound
        finds lower bound for a polynomial
     Usage
         (bound,sol) = lowerBound(f)
-	(bound,sol) = lowerBound(f, L)
+        (bound,sol) = lowerBound(f, h, D)
     Inputs
         f:RingElement
           a polynomial
+        h:List
+          a polynomials (optional)
+        D:ZZ
+          a degree for the SDP relaxation (optional)
     Outputs
         bound:
           a lower bound on f
@@ -689,54 +693,23 @@ doc /// --lowerBound
     Consequences
     Description
       Text
-        This method finds a lower bound for a multivariate polynomial $f$.
+        This method finds a lower bound for a multivariate polynomial $f$, or a rational function.
         In some cases the minimizer can be recovered.
       Example
         R=QQ[x];
         f = (x-1)^2 + (x+3)^2;
         (bound,sol) = lowerBound(f)
-    Caveat
-        The minimizer cannot be recovered with Solver=>"M2".
-    SeeAlso
-        lasserreHierarchy
-///
-
-doc /// --lasserreHierarchy
-    Key
-        lasserreHierarchy
-	(lasserreHierarchy, RingElement,List,ZZ)
-    Headline
-       Sole polynomial optimization using SDP relaxation
-    Usage
-        (bound,sol) = lasserreHierarchy(f,h,d)
-    Inputs
-        f:RingElement
-          a polynomial
-        h:List
-          a polynomials
-        d:ZZ
-	  a degree for the SDP relaxation
-    Outputs
-        bound:
-          a lower bound on f
-        sol:
-          the minimizer of f (if it can be recovered) or an empty list
-    Consequences
-    Description
       Text
-        This method implements an SDP relaxation for a polynomial optimization problem of the form
+        More generally, the method computes loer bounds for a polynomial optimization problem of the form
         $$min_x \, f(x) \,\,\, s.t. \,\,\, h_i(x) = 0, \, i=1..m$$
-        The method returns a lower bound on the optimal value.
-        In some cases the minimizer can be recovered.
       Example
         R = QQ[x,y];
-        f = -y;
+        f = y;
         h1 = y-x^2;
-        (minb, sol) = lasserreHierarchy (f, {h1}, 4)
+        (minb, sol) = lowerBound (f, {h1}, 4)
     Caveat
         The minimizer cannot be recovered with Solver=>"M2".
     SeeAlso
-        lowerBound
 ///
 
 doc /// --checkSolver
@@ -792,7 +765,6 @@ document { --Solver
         [sosInIdeal,Solver],
         [sosdecTernary,Solver],
         [lowerBound,Solver],
-        [lasserreHierarchy,Solver]
         },
     Headline => "semidefinite programming solver",
     "The following SDP solvers are available:",

@@ -36,7 +36,6 @@ export {
     "makeMultiples",
     "sosInIdeal",
     "lowerBound",
-    "lasserreHierarchy",
     "roundPSDmatrix",
     "checkSolver",
     "smat2vec",
@@ -243,7 +242,7 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
 
 rawSolveSOS(Matrix,Matrix) := o -> (F,objP) -> (
     mon := choosemonp (F,Verbose=>o.Verbose);
-    if mon===null then return (,mon,,);
+    if mon===null then return (,,,);
     (Q,X,pvec) := rawSolveSOS(F,objP,mon,o);
     mon = checkMonField(mon,F,Q,o.RndTol);
     return (mon,Q,X,pvec);
@@ -252,7 +251,7 @@ rawSolveSOS(Matrix) := o -> (F) ->
     rawSolveSOS(F,zeros(QQ,numRows F-1,1),o)
 
 checkMonField = (mon,F,Q,RndTol) -> (
-    if Q===null then return mon;
+    if mon===null or Q===null then return mon;
     if coefficientRing ring F===QQ then
         if RndTol==infinity or ring Q=!=QQ then
             return changeMatrixField(RR,mon);
@@ -765,44 +764,53 @@ recoverSolution = (mon,X,tol) -> (
     return sol;
     )
 
+-- Unconstrained minimization 
 lowerBound = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
 lowerBound(RingElement) := o -> (f) -> (
     -- sos lower bound for the polynomial f
-    D := first degree f;
-    if odd D then error "polynomial has odd degree";
-    (bound,sol) := lasserreHierarchy(f,{},D,o);
+    (bound,sol) := lowerBound(f,{},-1,o);
     return (bound, sol);
     )
 
--- Minimize a polynomial on an algebraic set using SDP relaxations:
-lasserreHierarchy = method(
-     Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
-lasserreHierarchy(RingElement,List,ZZ) := o -> (f,h,D) -> (
+-- Minimize a polynomial on an algebraic set
+lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
     -- Lasserre hierarchy for the problem
     -- min f(x) s.t. h(x)=0
+    numdens := (f) -> (
+        R := ring f;
+        (num,den) := (f, 1_R);
+        if isField R then(
+            (num,den) = (numerator f, denominator f);
+            R = last R.baseRings;
+            );
+        return (R,num,den)
+        );
+    checkInputs := (D,num,den,h,R) -> (
+        if D<0 then(
+            if #h>0 or isQuotientRing R then
+                error "Degree bound must be provided"
+        )else(
+            if odd D then error "degree bound must be even";
+            if D < max\\first\degree\(h|{num,den}) then
+                error "increase degree bound";
+            );
+        );
     
-    -- check inputs
-    if odd D then error "degree bound must be even";
-    if D < max\\first\degree\(h|{f}) then
-        error "increase degree bound";
-    if all(h|{f}, isHomogeneous) then
-        error "problem is homogeneous";
-    
+    (R,num,den) := numdens(f);
+    checkInputs(D,num,den,h,R);
     -- prepare input
     (H,m) := makeMultiples(h, D, false);
-    F := matrix transpose {{f,-1}|H};
+    F := matrix transpose {{num,-den}|H};
     objP := matrix{{-1}} || zeros(ZZ,#H,1);
 
     -- call solveSOS
     o' := new OptionTable from
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
-    R := ring F;
-    if isQuotientRing R then (
-        mon := transpose basis(0,D//2,R);
-        (Q,X,bound) := rawSolveSOS(F,objP,mon,o');
-    )else
-        (mon,Q,X,bound) = rawSolveSOS(F,objP,o');
+    mon := if isQuotientRing R then transpose basis(0,D//2,R)
+        else choosemonp (F,Verbose=>o.Verbose);
+    if mon===null then return (,);
+    (Q,X,bound) := rawSolveSOS(F,objP,mon,o');
     
     -- recover
     if Q===null then return (,);
@@ -1152,8 +1160,8 @@ checkSolver(String,String) := (solver,fun) -> (
         "solveSOS" => checkSolveSOS,
         "sosdecTernary" => checkSosdecTernary,
         "sosInIdeal" => checkSosInIdeal,
-        "lowerBound" => checkLowerBound,
-        "lasserreHierarchy" => checkLasserreHierarchy };
+        "lowerBound" => checkLowerBound
+        };
     if checkMethod#?fun then 
         return checkMethod#fun(solver);
     if fun != "AllMethods" then
@@ -1378,65 +1386,54 @@ checkLowerBound = solver -> (
     tol := 0.001;
     local x; x= symbol x;
     local y; y= symbol y;
+    local z; z= symbol z;
+    equal := (a,b) -> a=!=null and abs(a-b) < tol;
 
+    --------------UNCONSTRAINED1--------------
     --- Test 0
     R := QQ[x];
     f := (x-1)^2 + (x+3)^2;
     (bound, sol) := lowerBound(f, Solver=>solver);
-    t0 := (abs (8-bound) < tol);
+    t0 := equal(8,bound);
 
     -- Test 1
-    R = QQ[x,y];
-    f = (x - y)^2 + (x - 1)^4 + (y - 1)^2;
-    (bound, sol) = lowerBound(f, Solver=>solver);
-    t1 := (abs bound < tol);
-
-    -- Test 2
     R = RR[x,y];
     f = (x-pi*y)^2 + x^2 + (y-4)^2;
     (bound, sol) = lowerBound(f, Solver=>solver);
-    t2 := (abs (16*pi^2/(2+pi^2)-bound) < tol);
+    t1 := equal(16*pi^2/(2+pi^2),bound);
 
-    results := {t0,t1,t2};
-    informAboutTests (results);
-    return results
-    )
+    -- Test 2
+    R = QQ[x];
+    f = (x^2-x)/(x^2+1);
+    (bound, sol) = lowerBound(f, Solver=>solver, RndTol=>12);
+    t2 := equal(1/2-1/sqrt(2),bound);
 
--- check lasserreHierarchy
-checkLasserreHierarchy = solver -> (
-    tol := 0.001;
-    local x; x= symbol x;
-    local y; y= symbol y;
-    local z; z= symbol z;
-    --- Test 0
-    R := QQ[x,y,z];
-    f := z;
-    h1 := x^2 + y^2 + z^2 - 1;
-    (minb, sol) := lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t0 := minb=!=null and (abs(-1-minb) < tol);
-
-    --- Test 1
-    R = QQ[x,y];
-    f = y;
-    h1 = y-x^2;
-    (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t1 := minb=!=null and (abs(minb) < tol);
-    
-    --- Test 2
+    ---------------CONSTRAINED1---------------
+    --- Test 3
     R = RR[x,y];
     f = y;
-    h1 = y-pi*x^2;
-    (minb, sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t2 := minb=!=null and (abs(minb) < tol);
+    h1 := y-pi*x^2;
+    (bound, sol) = lowerBound (f, {h1}, 4, Solver=>solver);
+    t3 := equal(bound,0);
 
-    -- Test 3
+    -- Test 4
     R = QQ[x,y,z];
     f = z;
     h1 = x^2 + y^2 + z^2 - 1;
-    (minb,sol) = lasserreHierarchy (f, {h1}, 4, Solver=>solver);
-    t3 := minb=!=null and (abs(minb + 1) < tol);
+    (bound,sol) = lowerBound (f, {h1}, 4, Solver=>solver);
+    t4 := equal(bound,-1);
+
+    -----------------QUOTIENT1-----------------
+    -- Test 5
+    R = QQ[x,y];
+    I := ideal (x^2 - x);
+    S := R/I;
+    f = sub(x-y,S);
+    h1 = sub(y^2 - y,S);
+    (bound, sol) = lowerBound(f, {h1}, 2, Solver=>solver);
+    t5 := equal(bound,-1);
     
-    results := {t0,t1,t2,t3};
+    results := {t0,t1,t2,t3,t4,t5};
     informAboutTests (results);
     return results
     )
@@ -1615,10 +1612,4 @@ TEST /// --solveSDP
 TEST /// --solveSOS
     test := checkSolver("M2","solveSOS")
     assert(all(test,identity))
-///
-
-TEST /// --lasserreHierarchy
-    test := checkSolver ("M2","lasserreHierarchy")
-    -- lasserreHierarchy fails with the default solver
-    -- assert (test#0 and test#1)
 ///
