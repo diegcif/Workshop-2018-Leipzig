@@ -48,7 +48,7 @@ The following methods need a test that accepts the Solver as an input
 15*) solveSOS
 16) sosdecTernary
 17) sosInIdeal
-18) lowerBound   TK: With parameters is not tested yet
+18) lowerBound
 --19) lasserreHierarchy--
 
 The methods marked with (*) already have some tests, but need more.
@@ -70,6 +70,11 @@ Known bugs:
 
 6) LDLdecomposition decomposes (matrix{{1,-1,1},{-1,1,1},{1,1,1}})
    but fails the test. Of course it has one eigenvalue negative, so it shouldn't decompose.
+
+7) The following works over QQ but fails over RR (true solution -.178)
+    R = RR[x,z]
+    f = x^4+x^2+z^6-3*x^2*z^2;
+    (bound,sol) = lowerBound (f,Solver=>"SDPA");
 
 
 #########################
