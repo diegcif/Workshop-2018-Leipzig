@@ -671,7 +671,7 @@ makeMultiples = (h, D, homog) -> (
         flatten entries b
         );
     H := for i to #h-1 list h#i * mon#i;
-    return (flatten H, flatten mon);
+    return (flatten H, mon);
     )
 
 sosInIdeal = method(
@@ -703,9 +703,16 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
     if kk =!= coefficientRing S then
         S = kk(monoid[gens ring h#0]);
     a = sub(a,S);
-    m = for i in m list sub(i,S);
-    mult := sum apply(m,tval,(i,j)->i*j);
+    m = applyTable(m, i -> sub(i,S));
+    mult := getMultipliers(m,tval);
     return (a,mult);
+    )
+
+getMultipliers = (mon,tval) -> (
+    k := -1;
+    mult := for m in mon list
+        sum for i in m list( k=k+1; i*tval#k);
+    return mult;
     )
 
 sosdecTernary = method(
@@ -721,15 +728,14 @@ sosdecTernary(RingElement) := o -> (f) -> (
     di := first degree fi;
     while di > 4 do(
         (Si,mult) := sosInIdeal({fi},2*di-4,o);
-        if Si===null then return;
-        fi = mult#0;
+        if Si===null then return (,);
+        fi = first mult;
         di = first degree fi;
         S = append(S,Si);
         );
     (mon,Q,X,tval) := rawSolveSOS matrix{{fi}};
-    if Q===null then return;
     Si = sosdec(mon,Q);
-    if Si===null then return;
+    if Si===null then return (,);
     S = append(S,Si);
     nums := for i to #S-1 list if odd i then continue else S#i;
     dens := for i to #S-1 list if even i then continue else S#i;
@@ -1253,7 +1259,7 @@ checkSolveSDP = solver -> (
     (y,X,Z) = solveSDP (matrix{{1,0},{0,1}},(),matrix{{}},Solver=>solver);
     assert(y==0);
     return test;
-)
+    )
 
 --checkSolveSOS
 checkSolveSOS = solver -> (
@@ -1296,11 +1302,11 @@ checkSolveSOS = solver -> (
     (mon,Q,X,tval) = solveSOS(f,Solver=>solver);
     t3 := isGram(f,mon,Q);
 
-    -- Test 4
-    R = QQ[x,z][t];
-    f = x^4+x^2+z^6-3*x^2*z^2-t;
-    (mon,Q,X,tval) = solveSOS (f,-t,RndTol=>12,Solver=>solver);
-    t4 := ( tval#0 === -729/4096 ) and ( sub(f,t=>tval#0) == transpose(mon)*Q*mon );
+    -- Test 4 (parametric)
+    R = QQ[x][t];
+    f = (t-1)*x^4+1/2*t*x+1;
+    (mon,Q,X,tval) = solveSOS (f);
+    t4 := isGram(sub(f,t=>tval#0),mon,Q);
 
     ---------------BAD CASES1---------------
     -- Test 5
@@ -1324,14 +1330,32 @@ checkSosdecTernary = solver -> (
     local y; y= symbol y;
     local z; z= symbol z;
 
+    cmp := (f,p,q) -> (
+        if p===null then return false;
+        d := product(sumSOS\p) - f*product(sumSOS\q);
+        if coefficientRing ring f===QQ then return d==0;
+        return norm(d) < 1e-4;
+        );
+
+    -- Test 0
     R:= QQ[x,y,z];
+    f := x^2 + y^2 +z^2;
+    (p,q) := sosdecTernary (f, Solver=>"CSDP");
+    t0 := cmp(f,p,q);
 
-    f1 := x^2 + y^2 +z^2;
-    s := new SOSPoly from  {coefficients => {1,1,1},
-	    generators => {x,y,z}, ring =>R};
-    t0 := (s == product (sosdecTernary (f1, Solver=>solver))#0);
+    -- Test 1
+    R = QQ[x,y,z];
+    f = x^4*y^2 + x^2*y^4 + z^6 - 4*x^2 *y^2 * z^2;
+    (p,q) = sosdecTernary (f, Solver=>"CSDP");
+    t1 := (p===null);
 
-    results := {t0};
+    -- Test 2
+    R = RR[x,y,z];
+    f = x^4*y^2 + x^2*y^4 + z^6 - 3*x^2 *y^2 * z^2; --Motzkin
+    (p,q) = sosdecTernary (f, Solver=>"CSDP");
+    t2 := cmp(f,p,q);
+
+    results := {t0,t1,t2};
     informAboutTests (results);
     return results
     )
@@ -1342,40 +1366,32 @@ checkSosInIdeal = solver -> (
     local x; x= symbol x;
     local y; y= symbol y;
     local z; z= symbol z;
-    inIdeal := (s,h) -> (
-        if s === null then return false;
-        S := ring s;
-        if coefficientRing S===QQ then
-            return (sumSOS(s) % ideal h) == 0;
-        tol := 1e-6;
-        return norm(sumSOS(s) % sub(ideal h, S)) < tol;
+    cmp := (h,s,mult) -> (
+        if s===null then return false;
+        d := sum apply(h,mult,(i,j)->i*j) - sumSOS s;
+        if coefficientRing ring h#0===QQ then return d==0;
+        return norm(d)<1e-4;
         );
 
     -- Test 0
     R:= QQ[x];
     h:= {x+1};
-    (s,mult) := sosInIdeal (h,4, Solver=>solver);
-    t0 := inIdeal(s,h);
+    (s,mult) := sosInIdeal (h,2, Solver=>solver);
+    t0 := cmp(h,s,mult);
     
-    -- Test 1 (same as test 0 but with real input)
+    -- Test 1 (same as test 0 but with degree four)
     R= RR[x];
     h= {x+1};
     (s,mult) = sosInIdeal (h,4, Solver=>solver);
-    t1 := inIdeal(s,h);
-    
-    -- Test 2 (same as test 0 but with degree two)
-    R= QQ[x];
-    h= {x+1};
-    (s,mult) = sosInIdeal (h,2, Solver=>solver);
-    t2 := inIdeal(s,h);
+    t1 := cmp(h,s,mult);
 
-    -- Test 3:
-    R = QQ[x,y,z];
+    -- Test 2:
+    R = RR[x,y,z];
     h = {x-y, x+z};
     (s,mult) = sosInIdeal (h,6, Solver=>solver);
-    t3 := inIdeal(s,h);
+    t2 := cmp(h,s,mult);
 
-    results := {t0,t1,t2,t3};
+    results := {t0,t1,t2};
     informAboutTests (results);
     return results
     )
@@ -1387,53 +1403,63 @@ checkLowerBound = solver -> (
     local x; x= symbol x;
     local y; y= symbol y;
     local z; z= symbol z;
-    equal := (a,b) -> a=!=null and abs(a-b) < tol;
+    equal := (a,b) -> (
+        if a===null then return false;
+        d := if abs(b)<1 then abs(a-b) else abs(a-b)/abs(b);
+        return d < tol;
+        );
 
     --------------UNCONSTRAINED1--------------
     --- Test 0
     R := QQ[x];
     f := (x-1)^2 + (x+3)^2;
     (bound, sol) := lowerBound(f, Solver=>solver);
-    t0 := equal(8,bound);
+    t0 := equal(bound,8);
 
     -- Test 1
     R = RR[x,y];
     f = (x-pi*y)^2 + x^2 + (y-4)^2;
     (bound, sol) = lowerBound(f, Solver=>solver);
-    t1 := equal(16*pi^2/(2+pi^2),bound);
+    t1 := equal(bound,16*pi^2/(2+pi^2));
 
     -- Test 2
+    R = QQ[x,z];
+    f = x^4+x^2+z^6-3*x^2*z^2;
+    (bound,sol) = lowerBound (f,Solver=>solver,RndTol=>infinity);
+    t2 := equal(bound,-.17798);
+
+    -- Test 3 (rational function)
     R = QQ[x];
     f = (x^2-x)/(x^2+1);
-    (bound, sol) = lowerBound(f, Solver=>solver, RndTol=>12);
-    t2 := equal(1/2-1/sqrt(2),bound);
+    (bound, sol) = lowerBound(f, Solver=>solver, RndTol=>infinity);
+    t3 := equal(bound,1/2-1/sqrt(2));
 
     ---------------CONSTRAINED1---------------
-    --- Test 3
+    --- Test 4
     R = RR[x,y];
     f = y;
     h1 := y-pi*x^2;
     (bound, sol) = lowerBound (f, {h1}, 4, Solver=>solver);
-    t3 := equal(bound,0);
+    t4 := equal(bound,0);
 
-    -- Test 4
+    -- Test 5
     R = QQ[x,y,z];
     f = z;
     h1 = x^2 + y^2 + z^2 - 1;
     (bound,sol) = lowerBound (f, {h1}, 4, Solver=>solver);
-    t4 := equal(bound,-1);
+    t5 := equal(bound,-1);
 
     -----------------QUOTIENT1-----------------
-    -- Test 5
+    -- Test 6
     R = QQ[x,y];
     I := ideal (x^2 - x);
     S := R/I;
     f = sub(x-y,S);
     h1 = sub(y^2 - y,S);
     (bound, sol) = lowerBound(f, {h1}, 2, Solver=>solver);
-    t5 := equal(bound,-1);
+    t6 := equal(bound,-1);
     
-    results := {t0,t1,t2,t3,t4,t5};
+    results := {t0,t1,t2,t3,t4,t5,t6};
     informAboutTests (results);
     return results
     )
