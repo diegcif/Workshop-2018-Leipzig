@@ -141,23 +141,31 @@ doc /// --sumSOS
     Key
         sumSOS
         (sumSOS,SOSPoly)
+	(sumSOS, List, List)
     Headline
         expansion of a weighted SOS decomposition
     Usage
         sumSOS(s)
+	sumSOS(g,d)
     Inputs
         s:SOSPoly
+	g:List
+	  a list of polynomials
+	d:List
+	  a list of coefficients
     Outputs
         :RingElement
           a polynomial
     Consequences
     Description
       Text
-        Given polynomials $g_i$ and scalars $d_i$,
-        this method computes
-        $f = \sum_i d_i g_i^2$.
+        Given polynomials $g_i$ and coefficients $d_i$,
+        this method computes $f = \sum_i d_i g_i^2$.
+	The polynomials and coefficients can be given as lists or
+	encapsulated in an object of type @TO SOSPoly@.
       Example
         R = QQ[x,y];
+	sumSOS( {x+1,y}, {2,3}  )
         s = sosPoly(R, {x+1,y}, {2,3} )
         sumSOS( s )
       Code    
