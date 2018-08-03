@@ -473,7 +473,6 @@ doc /// --LDLdecomposition
         (L,D,P,err) = LDLdecomposition A
     Inputs
         A:Matrix
-          over $\QQ$ or $\ZZ$
     Outputs
         L:Matrix
           lower triangular
@@ -672,11 +671,14 @@ doc /// --sosInIdeal
 doc /// --lowerBound
     Key
         lowerBound
-	(lowerBound, RingElement)
+        (lowerBound, RingElement)
+        (lowerBound, RingElement, ZZ)
+        (lowerBound, RingElement, List, ZZ)
     Headline
        finds lower bound for a polynomial
     Usage
         (bound,sol) = lowerBound(f)
+        (bound,sol) = lowerBound(f,D)
         (bound,sol) = lowerBound(f, h, D)
     Inputs
         f:RingElement
@@ -684,7 +686,7 @@ doc /// --lowerBound
         h:List
           a polynomials (optional)
         D:ZZ
-          a degree for the SDP relaxation (optional)
+          a degree bound for the SDP relaxation (optional)
     Outputs
         bound:
           a lower bound on f
@@ -700,13 +702,19 @@ doc /// --lowerBound
         f = (x-1)^2 + (x+3)^2;
         (bound,sol) = lowerBound(f)
       Text
-        More generally, the method computes loer bounds for a polynomial optimization problem of the form
+        More generally, the method computes lower bounds for a polynomial optimization problem of the form
         $$min_x \, f(x) \,\,\, s.t. \,\,\, h_i(x) = 0, \, i=1..m$$
       Example
         R = QQ[x,y];
         f = y;
         h1 = y-x^2;
         (minb, sol) = lowerBound (f, {h1}, 4)
+      Text
+        The method also works in quotient rings.
+      Example
+        R = QQ[x,y]/ideal(x^2 - x, y^2 - y);
+        f = x - y;
+        (bound, sol) = lowerBound(f,2)
     Caveat
         The minimizer cannot be recovered with Solver=>"M2".
     SeeAlso

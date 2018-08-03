@@ -40,6 +40,7 @@ export {
     "checkSolver",
     "smat2vec",
     "vec2smat",
+    "recoverSolution",
 --only for debugging
     "parameterVector",
     "createSOSModel",
@@ -746,22 +747,19 @@ sosdecTernary(RingElement) := o -> (f) -> (
 -- SOS OPTIMIZATION
 --###################################
 
-rank1factor = method(
-     Options => {EigTol => 1e-4} )
-rank1factor(Matrix) := o -> (X) -> (
+rank1factor = (X) -> (
     n := numRows X;
     (e, V) := eigenvectors(X,Hermitian=>true);
-    if e#0 < 0 then return; -- X not PSD
-    if e#(n-2) > o.EigTol then return; -- not rank one
-    v := sqrt abs(e#(n-1)) * V_{n-1};
-    retval := flatten entries v;
-    return retval;
+    v := sqrt max(e#(n-1),0) * V_{n-1};
+    x := flatten entries v;
+    return (x,e/abs(e#(-1)));
     )
 
-recoverSolution = (mon,X,tol) -> (
+recoverSolution = {EigTol => 1e-4} >> o -> (mon,X) -> (
     if X===null then return {};
-    x := rank1factor(X,EigTol=>tol);
-    if x===null then return {};
+    (x,e) := rank1factor(X);
+    if e#0 < -1e-9 then return {}; -- X not PSD
+    if e#(-2) > o.EigTol then return {}; -- not rank one
     if x#0<0 then x = -x;
     sol := for i to numRows mon-1 list (
         y := mon_(i,0);
@@ -771,13 +769,11 @@ recoverSolution = (mon,X,tol) -> (
     )
 
 -- Unconstrained minimization 
+-- sos lower bound for the polynomial f
 lowerBound = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
-lowerBound(RingElement) := o -> (f) -> (
-    -- sos lower bound for the polynomial f
-    (bound,sol) := lowerBound(f,{},-1,o);
-    return (bound, sol);
-    )
+lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},-1,o)
+lowerBound(RingElement,ZZ) := o -> (f,D) -> lowerBound(f,{},D,o)
 
 -- Minimize a polynomial on an algebraic set
 lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
@@ -820,7 +816,7 @@ lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
     
     -- recover
     if Q===null then return (,);
-    sol := recoverSolution(mon,X,o.EigTol);
+    sol := recoverSolution(mon,X,EigTol=>o.EigTol);
     return (bound#0,sol);
     )
 
@@ -851,14 +847,22 @@ solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
         (y,X,Z) = solveSDPA(C,A,b,Verbose=>o.Verbose)
     else
         error "unknown SDP solver";
-    if C==0 and b==0 and y==0 then(
-        print "Zero solution obtained. Trying one more time.";
-        b' := random(RR^(numRows b),RR^1);
-        (y',X',Z') := solveSDP(C,A,b',o);
-        if y'=!=null and norm(y')>1e-6 then (y,Z) = (y',Z');
-        );
+    ntries := 10;
+    (y,Z) = findNonZeroSolution(C,A,b,o,y,Z,ntries);
     return (y,X,Z);
-)
+    )
+
+findNonZeroSolution = (C,A,b,o,y,Z,ntries) -> (
+    if not(C==0 and b==0 and y==0) then return (y,Z);
+    print "Zero solution obtained. Trying again.";
+    m := numRows b;
+    for i to ntries-1 do(
+        b' := matrix for i to m-1 list {random(RR)-.5};
+        (y',X',Z') := solveSDP(C,A,b',o);
+        if y'=!=null and norm(y')>1e-6 then return (y',Z');
+        );
+    return (y,Z);
+    )
 
 solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
     (C,A,b) = toReal(C,A,b);
@@ -871,14 +875,14 @@ solveSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y0) -> (
     if ok then return (y,X,Z);
     (y,Z) = simpleSDP(C,A,b,y0,UntilObjNegative=>o.UntilObjNegative,Verbose=>o.Verbose);
     return (y,,Z);
-)
+    )
 
 toReal = (C,A,b) -> (
     C = promote(C,RR);
     A = apply(A, Ai -> promote(Ai,RR));
     b = promote(b,RR);
     return (C,A,b);
-)
+    )
 
 sdpNoConstraints = (C,A,b) -> (
     if #A==0 then(
@@ -893,7 +897,7 @@ sdpNoConstraints = (C,A,b) -> (
             );
         );
     return (false,,,);
-)
+    )
 
 -- check trivial cases
 trivialSDP = (C,A,b) -> (
@@ -909,7 +913,7 @@ trivialSDP = (C,A,b) -> (
             );
         );
     return (false,,,);
-)
+    )
 
 --simpleSDP
 
