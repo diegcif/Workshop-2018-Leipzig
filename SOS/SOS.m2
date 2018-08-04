@@ -147,11 +147,15 @@ sumSOS SOSPoly := a -> sum for i to #(a#gens)-1 list a#gens_i^2 * a#coefficients
 clean(RR,SOSPoly) := (tol,s) -> (
     if s===null then return (,);
     R := ring s;
-    if coefficientRing R === QQ then tol=0;
+    kk := coefficientRing R;
+    if kk === QQ then tol=0.;
     g := gens s;
     d := coefficients s;
     I := positions(d, di -> di>tol);
-    return sosPoly(R,g_I,d_I);
+    d = d_I;
+    g = g_I;
+    if kk =!= QQ then g = clean_tol \ g;
+    return sosPoly(R,g,d);
     )
 
 --##########################################################################--
@@ -1504,9 +1508,9 @@ TEST /// --SOSmult
 
 TEST /// --cleanSOS
     R = RR[x,y];
-    s = sosPoly(R, {x+1,y}, {2,0.0001})
-    t1 = clean( 0.001, s )
-    t2 = sosPoly(R, {x+1}, {2})
+    s = sosPoly(R, {x^2+.0001*x+1,y}, {2,.0001})
+    t1 = clean( .001, s )
+    t2 = sosPoly(R, {x^2+1}, {2})
     assert (t1 == t2)
     
     R = QQ[x,y];

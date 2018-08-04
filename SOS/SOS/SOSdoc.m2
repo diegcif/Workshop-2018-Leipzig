@@ -129,8 +129,8 @@ doc /// --cleanSOS
 	on inputs with rational coefficients.
       Example
         R = RR[x,y];
-        s = sosPoly(R, {x+1,y}, {2,0.0001})
-        clean( 0.001, s )
+        s = sosPoly(R, {x^2+.0001*x+1, y}, {2, .0001})
+        clean( .001, s )
       Code
       Pre
     SeeAlso

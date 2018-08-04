@@ -28,6 +28,5 @@ f4 = a*( x^10 + y^10 + z^10)+
     d*( x^6* y^2* z^2 + x^2* y^6* z^2 + x^2* y^2* z^6) +
     e*( x^4* y^4* z^2 + x^4* y^2* z^4 + x^2* y^4* z^4)
 h = x^2 + y^2 + z^2
-(mon4,Q4,X4,tval) = solveSOS (f4*h, Solver=>"CSDP")
+(mon4,Q4,X4,tval) = solveSOS (f4*h^3, Solver=>"CSDP")
 g4 = sosdec (mon4,Q4)
-(p4,q4) = sosdecTernary (f4)
