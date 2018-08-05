@@ -655,11 +655,11 @@ doc /// --lowerBound
         (lowerBound, RingElement, ZZ)
         (lowerBound, RingElement, List, ZZ)
     Headline
-       finds lower bound for a polynomial
+        finds a lower bound for a polynomial
     Usage
-        (bound,sol) = lowerBound(f)
-        (bound,sol) = lowerBound(f,D)
-        (bound,sol) = lowerBound(f, h, D)
+        (bound,mon,Q,X) = lowerBound(f)
+        (bound,mon,Q,X) = lowerBound(f,D)
+        (bound,mon,Q,X) = lowerBound(f, h, D)
     Inputs
         f:RingElement
           a polynomial
@@ -670,17 +670,18 @@ doc /// --lowerBound
     Outputs
         bound:
           a lower bound on f
-        sol:
+        mon:
           the minimizer of f (if it can be recovered)
     Consequences
     Description
       Text
-        This method finds a lower bound for a multivariate polynomial $f$, or a rational function.
-        In some cases the minimizer can be recovered.
+        This method finds a lower bound for a function $f$, which is either a polynomial or a rational function.
+        In some cases the minimizer can be recovered by using the method @TO recoverSolution@.
       Example
         R=QQ[x];
         f = (x-1)^2 + (x+3)^2;
-        (bound,sol) = lowerBound(f)
+        (bound,mon,Q,X) = lowerBound(f);
+        bound
       Text
         More generally, the method computes lower bounds for a polynomial optimization problem of the form
         $$min_x \, f(x) \,\,\, s.t. \,\,\, h_i(x) = 0, \, i=1..m$$
@@ -688,16 +689,49 @@ doc /// --lowerBound
         R = QQ[x,y];
         f = y;
         h1 = y-x^2;
-        (minb, sol) = lowerBound (f, {h1}, 4)
+        (bound,mon,Q,X) = lowerBound (f, {h1}, 4);
+        bound
       Text
         The method also works in quotient rings.
       Example
         R = QQ[x,y]/ideal(x^2 - x, y^2 - y);
         f = x - y;
-        (bound, sol) = lowerBound(f,2)
-    Caveat
-        The minimizer cannot be recovered with Solver=>"M2".
+        (bound,mon,Q,X) = lowerBound(f,2);
+        bound
     SeeAlso
+        recoverSolution
+///
+
+doc /// --recoverSolution
+    Key
+        recoverSolution
+    Headline
+        recover the solution of an SOS problem
+    Usage
+        sol = recoverSolution(mon,X)
+    Inputs
+        mon:Matrix
+          of monomials
+        X:Matrix
+          the moment matrix
+    Outputs
+        sol:List
+          the solution
+    Consequences
+    Description
+      Text
+        This method attempts to find the solution of an SOS problem
+        by checking if the moment matrix is rank one.
+      Example
+        R = RR[x,y];
+        mon = matrix {{1},{x},{y}};
+        X = matrix(RR, {{1,0,1},{0,0,0},{1,0,1}} );
+        sol = recoverSolution(mon,X)
+      Code
+      Pre
+    SeeAlso
+        solveSOS
+        lowerBound
 ///
 
 doc /// --checkSolver

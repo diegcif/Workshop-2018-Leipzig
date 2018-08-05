@@ -175,7 +175,7 @@ sosdec = (mon,Q) -> (
         return 
         );
     n := numRows Q;
-    g := toList flatten entries (transpose mon * transpose inverse P * L);
+    g := toList flatten entries (transpose mon * P * L);
     d := for i to n-1 list D_(i,i);
     idx := positions (d, i->i!=0);
     d = d_idx;
@@ -380,7 +380,7 @@ createSOSModel(Matrix,Matrix) := o -> (F,v) -> (
     K := sort \\ unique \\ flatten \\ mons \ flatten vvT;
     
     -- Linear constraints: b
-    b := transpose matrix(kk,{for k in K list coefficient(k,F_(0,0)) });
+    b := map(kk^#K,kk^1, (i,j) -> coefficient(K#i,F_(0,0)) );
     
     -- Linear constraints: A, B
     coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
@@ -757,7 +757,7 @@ recoverSolution = {EigTol => 1e-4} >> o -> (mon,X) -> (
 -- Unconstrained minimization 
 -- sos lower bound for the polynomial f
 lowerBound = method(
-     Options => {RndTol => 3, Solver=>"M2", Verbose => false, EigTol => 1e-4} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false} )
 lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},-1,o)
 lowerBound(RingElement,ZZ) := o -> (f,D) -> lowerBound(f,{},D,o)
 
@@ -798,12 +798,9 @@ lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
     mon := if isQuotientRing R then transpose basis(0,D//2,R)
         else choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,);
-    (Q,X,bound) := rawSolveSOS(F,objP,mon,o');
-    
-    -- recover
-    if Q===null then return (,);
-    sol := recoverSolution(mon,X,EigTol=>o.EigTol);
-    return (bound#0,sol);
+    (Q,X,tval) := rawSolveSOS(F,objP,mon,o');
+    bound := if tval=!=null then tval#0;
+    return (bound,mon,Q,X);
     )
 
 --###################################
@@ -1415,25 +1412,25 @@ checkLowerBound = solver -> (
     --- Test 0
     R := QQ[x];
     f := (x-1)^2 + (x+3)^2;
-    (bound, sol) := lowerBound(f, Solver=>solver);
+    (bound,mon,Q,X) := lowerBound(f, Solver=>solver);
     t0 := equal(bound,8);
 
     -- Test 1
     R = RR[x,y];
     f = (x-pi*y)^2 + x^2 + (y-4)^2;
-    (bound, sol) = lowerBound(f, Solver=>solver);
+    (bound,mon,Q,X) = lowerBound(f, Solver=>solver);
     t1 := equal(bound,16*pi^2/(2+pi^2));
 
     -- Test 2
     R = QQ[x,z];
     f = x^4+x^2+z^6-3*x^2*z^2;
-    (bound,sol) = lowerBound (f,Solver=>solver,RndTol=>infinity);
+    (bound,mon,Q,X) = lowerBound (f,Solver=>solver,RndTol=>infinity);
     t2 := equal(bound,-.17798);
 
     -- Test 3 (rational function)
     R = QQ[x];
     f = (x^2-x)/(x^2+1);
-    (bound, sol) = lowerBound(f, Solver=>solver, RndTol=>infinity);
+    (bound,mon,Q,X) = lowerBound(f, Solver=>solver, RndTol=>infinity);
     t3 := equal(bound,1/2-1/sqrt(2));
 
     ---------------CONSTRAINED1---------------
@@ -1441,14 +1438,14 @@ checkLowerBound = solver -> (
     R = RR[x,y];
     f = y;
     h1 := y-pi*x^2;
-    (bound, sol) = lowerBound (f, {h1}, 4, Solver=>solver);
+    (bound,mon,Q,X) = lowerBound (f, {h1}, 4, Solver=>solver);
     t4 := equal(bound,0);
 
     -- Test 5
     R = QQ[x,y,z];
     f = z;
     h1 = x^2 + y^2 + z^2 - 1;
-    (bound,sol) = lowerBound (f, {h1}, 4, Solver=>solver);
+    (bound,mon,Q,X) = lowerBound (f, {h1}, 4, Solver=>solver);
     t5 := equal(bound,-1);
 
     -----------------QUOTIENT1-----------------
@@ -1458,7 +1455,7 @@ checkLowerBound = solver -> (
     S := R/I;
     f = sub(x-y,S);
     h1 = sub(y^2 - y,S);
-    (bound, sol) = lowerBound(f, {h1}, 2, Solver=>solver);
+    (bound,mon,Q,X) = lowerBound(f, {h1}, 2, Solver=>solver);
     t6 := equal(bound,-1);
     
     results := {t0,t1,t2,t3,t4,t5,t6};
@@ -1645,6 +1642,14 @@ TEST ///--makeMultiples
     (H,m) = makeMultiples (h,3, true)
     assert(#H == 9)
     assert( unique(first\degree\H) == {3} )
+///
+
+TEST ///--recoverSolution
+    R = RR[x,y];
+    mon = matrix {{1},{x},{y}};
+    X = matrix(RR, {{1,0,1},{0,0,0},{1,0,1}} );
+    sol = recoverSolution(mon,X);
+    assert(sol#0#1==0 and sol#1#1==1)
 ///
 
 TEST /// --solveSDP
