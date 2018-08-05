@@ -111,7 +111,7 @@ for the tests.  If a routine fails 1 out of 10 times, how should it be
     R = QQ[x,y,z];
     h = {x-y, x+z};
     (s,mult) = sosInIdeal (h,10, Solver=>"CSDP");
-    diego: it seems to work with d=4, why did you choose d=10??
+    diego: it works now even for d=2!
 
 3) Maybe we should implement that each RingMap can be applied to an
    SOSpoly?

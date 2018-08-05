@@ -860,10 +860,16 @@ findNonZeroSolution = (C,A,b,o,y,Z,ntries) -> (
     if not(C==0 and b==0 and y==0) then return (y,Z);
     print "Zero solution obtained. Trying again.";
     m := numRows b;
+    badCoords := set();
+    iszero := a -> norm a < 1e-8;
     for i to ntries-1 do(
-        b' := matrix for i to m-1 list {random(RR)-.5};
+        if #badCoords==m then break;
+        b' := map(RR^m,RR^1, (j,l) -> 
+            if member(j,badCoords) then 0 else random(RR)-.5 );
         (y',X',Z') := solveSDP(C,A,b',o);
-        if y'=!=null and norm(y')>1e-6 then return (y',Z');
+        if Z'=!=null and not iszero Z' then return (y',Z');
+        if X'===null and y'=!=null and (transpose b' * y')_(0,0) < -.1 then
+            badCoords = badCoords + set select(0..m-1, j -> not iszero y'_(j,0));
         );
     return (y,Z);
     )
@@ -1387,7 +1393,7 @@ checkSosInIdeal = solver -> (
     (s,mult) := sosInIdeal (h,2, Solver=>solver);
     t0 := cmp(h,s,mult);
     
-    -- Test 1 (same as test 0 but with degree four)
+    -- Test 1 (similar to test 0)
     R= RR[x];
     h= {x+1};
     (s,mult) = sosInIdeal (h,4, Solver=>solver);
@@ -1396,10 +1402,16 @@ checkSosInIdeal = solver -> (
     -- Test 2:
     R = RR[x,y,z];
     h = {x-y, x+z};
-    (s,mult) = sosInIdeal (h,6, Solver=>solver);
+    (s,mult) = sosInIdeal (h,2, Solver=>solver);
     t2 := cmp(h,s,mult);
 
-    results := {t0,t1,t2};
+    -- Test 3: (similar to test 2)
+    R = RR[x,y,z];
+    h = {x-y, x+z};
+    (s,mult) = sosInIdeal (h,6, Solver=>solver);
+    t3 := cmp(h,s,mult);
+
+    results := {t0,t1,t2,t3};
     informAboutTests (results);
     return results
     )
