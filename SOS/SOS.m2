@@ -229,38 +229,29 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
 
 
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
-    if Q===null then return (Q,X,);
+    if Q===null then return (mon,Q,X,);
     y := -my;
     if #bounds==2 then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..np-1));
 
-    if kk=!=QQ or o.RndTol==infinity then
-        return (Q,X,pvec0);
+    if kk=!=QQ then return (mon,Q,X,pvec0);
+    if o.RndTol==infinity then
+        return (changeMatrixField(RR,mon),Q,X,pvec0);
 
     -- rational rounding --
     (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,o.RndTol);
-    if ok then return (Qp,X,pVec);
+    if ok then return (mon,Qp,X,pVec);
     print "rounding failed, returning real solution";
-    return (Q,X,pvec0);
+    return (changeMatrixField(RR,mon),Q,X,pvec0);
     )
 
 rawSolveSOS(Matrix,Matrix) := o -> (F,objP) -> (
     mon := choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,,,);
-    (Q,X,pvec) := rawSolveSOS(F,objP,mon,o);
-    mon = checkMonField(mon,F,Q,o.RndTol);
-    return (mon,Q,X,pvec);
+    return rawSolveSOS(F,objP,mon,o);
     )
 rawSolveSOS(Matrix) := o -> (F) -> 
     rawSolveSOS(F,zeros(QQ,numRows F-1,1),o)
-
-checkMonField = (mon,F,Q,RndTol) -> (
-    if mon===null or Q===null then return mon;
-    if coefficientRing ring F===QQ then
-        if RndTol==infinity or ring Q=!=QQ then
-            return changeMatrixField(RR,mon);
-    return mon;
-    )
 
 -- This is the main method to decompose a polynomial as a 
 -- sum of squares using an SDP solver.
@@ -278,9 +269,7 @@ solveSOS(RingElement,RingElement) := o -> (f,objFcn) -> (
     (F,objP) := parameterVector(f,objFcn);
     mon := choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,mon,,);
-    (Q,X,pvec) := rawSolveSOS(F,objP,mon,o);
-    mon = checkMonField(mon,F,Q,o.RndTol);
-    return (mon,Q,X,pvec);
+    return rawSolveSOS(F,objP,mon,o);
     )
 solveSOS(RingElement) := o -> (f) -> 
     solveSOS(f,0_(ring f),o)
@@ -291,11 +280,9 @@ changeRingField = (kk,R) -> kk(monoid[gens R])
 changeMatrixField = (kk, M) -> (
     -- M is a matrix whose entries are polynomials whose coefficient
     -- ring should be changed.
-    e := entries M;
-    R := changeRingField(kk, ring e#0#0);
-    matrix for row in e list(
-	for entry in row list(
-	    toRing(R, entry))))
+    R := changeRingField(kk, ring M);
+    return matrix applyTable(entries M, m -> toRing(R,m));
+    )
 
 toRing = method ()
 toRing (Ring, RingElement) := (S,f) -> (
@@ -663,17 +650,18 @@ makeMultiples = (h, D, homog) -> (
 
 sosInIdeal = method(
      Options => {RndTol => 3, Solver=>"CSDP", Verbose => false} )
-sosInIdeal(List,ZZ) := o -> (h,D) -> (
-    -- h is a list of polynomials
+sosInIdeal(Matrix,ZZ) := o -> (h,D) -> (
+    -- h is a row vector of polynomials
     -- D is a degree bound
     -- returns sos polynomial in <h>
 
     -- The output consists of an SOSPoly and the multipliers that
     -- express the SOS in terms of the generators.
-
+    
+    if numRows h > 1 then error "h must be a row vector";
     if odd D then error "D must be even";
-    homog := all(h, isHomogeneous);
-    (H,m) := makeMultiples(h, D, homog);
+    homog := isHomogeneous h;
+    (H,m) := makeMultiples(first entries h, D, homog);
     F := matrix transpose {{0}|H};
     (mon,Q,X,tval) := rawSolveSOS (F, o);
     if Q===null or Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
@@ -685,20 +673,16 @@ sosInIdeal(List,ZZ) := o -> (h,D) -> (
         print("no sos polynomial in degree "|D);
         return (null,null);
 	);
-    S := ring h#0;
-    kk := ring Q;
-    if kk =!= coefficientRing S then
-        S = kk(monoid[gens ring h#0]);
-    a = sub(a,S);
-    m = applyTable(m, i -> sub(i,S));
-    mult := getMultipliers(m,tval);
+    mult := getMultipliers(m,tval,ring mon);
     return (a,mult);
     )
 
-getMultipliers = (mon,tval) -> (
+getMultipliers = (mon,tval,S) -> (
+    if #mon==0 then return zeros(S,0,1);
+    mon = applyTable(mon, i -> sub(i,S));
     k := -1;
-    mult := for m in mon list
-        sum for i in m list( k=k+1; i*tval#k);
+    mult := matrix(S, for m in mon list
+        {sum for i in m list( k=k+1; i*tval#k)} );
     return mult;
     )
 
@@ -714,9 +698,9 @@ sosdecTernary(RingElement) := o -> (f) -> (
     S := {};
     di := first degree fi;
     while di > 4 do(
-        (Si,mult) := sosInIdeal({fi},2*di-4,o);
+        (Si,mult) := sosInIdeal(matrix{{fi}},2*di-4,o);
         if Si===null then return (,);
-        fi = first mult;
+        fi = mult_(0,0);
         di = first degree fi;
         S = append(S,Si);
         );
@@ -758,11 +742,11 @@ recoverSolution = {EigTol => 1e-4} >> o -> (mon,X) -> (
 -- sos lower bound for the polynomial f
 lowerBound = method(
      Options => {RndTol => 3, Solver=>"M2", Verbose => false} )
-lowerBound(RingElement) := o -> (f) -> lowerBound(f,{},-1,o)
-lowerBound(RingElement,ZZ) := o -> (f,D) -> lowerBound(f,{},D,o)
+lowerBound(RingElement) := o -> (f) -> lowerBound(f,-1,o)
+lowerBound(RingElement,ZZ) := o -> (f,D) -> drop(lowerBound(f,zeros(ring f,1,0),D,o),-1)
 
 -- Minimize a polynomial on an algebraic set
-lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
+lowerBound(RingElement,Matrix,ZZ) := o -> (f,h,D) -> (
     -- Lasserre hierarchy for the problem
     -- min f(x) s.t. h(x)=0
     numdens := (f) -> (
@@ -775,20 +759,19 @@ lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
         return (R,num,den)
         );
     checkInputs := (D,num,den,h,R) -> (
+        if numRows h > 1 then error "h must be a row vector";
         if D<0 then(
-            if #h>0 or isQuotientRing R then
+            if numColumns h>0 or isQuotientRing R then
                 error "Degree bound must be provided"
         )else(
             if odd D then error "degree bound must be even";
-            if D < max\\first\degree\(h|{num,den}) then
-                error "increase degree bound";
             );
         );
     
     (R,num,den) := numdens(f);
     checkInputs(D,num,den,h,R);
     -- prepare input
-    (H,m) := makeMultiples(h, D, false);
+    (H,m) := makeMultiples(flatten entries h, D, false);
     F := matrix transpose {{num,-den}|H};
     objP := matrix{{-1}} || zeros(ZZ,#H,1);
 
@@ -798,9 +781,10 @@ lowerBound(RingElement,List,ZZ) := o -> (f,h,D) -> (
     mon := if isQuotientRing R then transpose basis(0,D//2,R)
         else choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,);
-    (Q,X,tval) := rawSolveSOS(F,objP,mon,o');
+    (mon',Q,X,tval) := rawSolveSOS(F,objP,mon,o');
     bound := if tval=!=null then tval#0;
-    return (bound,mon,Q,X);
+    mult := getMultipliers(m,drop(tval,1),ring mon');
+    return (bound,mon,Q,X,mult);
     )
 
 --###################################
@@ -1361,32 +1345,32 @@ checkSosInIdeal = solver -> (
     local z; z= symbol z;
     cmp := (h,s,mult) -> (
         if s===null then return false;
-        d := sum apply(h,mult,(i,j)->i*j) - sumSOS s;
-        if coefficientRing ring h#0===QQ then return d==0;
+        d := (h*mult)_(0,0) - sumSOS s;
+        if coefficientRing ring h===QQ then return d==0;
         return norm(d)<1e-4;
         );
 
     -- Test 0
     R:= QQ[x];
-    h:= {x+1};
+    h:= matrix {{x+1}};
     (s,mult) := sosInIdeal (h,2, Solver=>solver);
     t0 := cmp(h,s,mult);
     
     -- Test 1 (similar to test 0)
     R= RR[x];
-    h= {x+1};
+    h= matrix {{x+1}};
     (s,mult) = sosInIdeal (h,4, Solver=>solver);
     t1 := cmp(h,s,mult);
 
     -- Test 2:
     R = RR[x,y,z];
-    h = {x-y, x+z};
+    h = matrix {{x-y, x+z}};
     (s,mult) = sosInIdeal (h,2, Solver=>solver);
     t2 := cmp(h,s,mult);
 
     -- Test 3: (similar to test 2)
     R = RR[x,y,z];
-    h = {x-y, x+z};
+    h = matrix {{x-y, x+z}};
     (s,mult) = sosInIdeal (h,6, Solver=>solver);
     t3 := cmp(h,s,mult);
 
@@ -1402,10 +1386,17 @@ checkLowerBound = solver -> (
     local x; x= symbol x;
     local y; y= symbol y;
     local z; z= symbol z;
+    local mult;
     equal := (a,b) -> (
         if a===null then return false;
         d := if abs(b)<1 then abs(a-b) else abs(a-b)/abs(b);
         return d < tol;
+        );
+    cmp := (f,h,bound,mon,Q,mult) -> (
+        if Q===null then return false;
+        d := f - bound + (h*mult - transpose mon * Q * mon)_(0,0);
+        if coefficientRing ring h===QQ then return d==0;
+        return norm(d)<1e-4;
         );
 
     --------------UNCONSTRAINED1--------------
@@ -1437,16 +1428,16 @@ checkLowerBound = solver -> (
     --- Test 4
     R = RR[x,y];
     f = y;
-    h1 := y-pi*x^2;
-    (bound,mon,Q,X) = lowerBound (f, {h1}, 4, Solver=>solver);
-    t4 := equal(bound,0);
+    h := matrix {{y-pi*x^2}};
+    (bound,mon,Q,X,mult) = lowerBound (f, h, 4, Solver=>solver);
+    t4 := equal(bound,0) and cmp(f,h,bound,mon,Q,mult);
 
     -- Test 5
     R = QQ[x,y,z];
     f = z;
-    h1 = x^2 + y^2 + z^2 - 1;
-    (bound,mon,Q,X) = lowerBound (f, {h1}, 4, Solver=>solver);
-    t5 := equal(bound,-1);
+    h = matrix {{x^2 + y^2 + z^2 - 1}};
+    (bound,mon,Q,X,mult) = lowerBound (f, h, 4, Solver=>solver);
+    t5 := equal(bound,-1) and cmp(f,h,bound,mon,Q,mult);
 
     -----------------QUOTIENT1-----------------
     -- Test 6
@@ -1454,9 +1445,9 @@ checkLowerBound = solver -> (
     I := ideal (x^2 - x);
     S := R/I;
     f = sub(x-y,S);
-    h1 = sub(y^2 - y,S);
-    (bound,mon,Q,X) = lowerBound(f, {h1}, 2, Solver=>solver);
-    t6 := equal(bound,-1);
+    h = matrix {{sub(y^2 - y,S)}};
+    (bound,mon,Q,X,mult) = lowerBound(f, h, 2, Solver=>solver);
+    t6 := equal(bound,-1) and cmp(f,h,bound,mon,Q,mult);
     
     results := {t0,t1,t2,t3,t4,t5,t6};
     informAboutTests (results);

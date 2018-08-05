@@ -653,13 +653,13 @@ doc /// --lowerBound
         lowerBound
         (lowerBound, RingElement)
         (lowerBound, RingElement, ZZ)
-        (lowerBound, RingElement, List, ZZ)
+        (lowerBound, RingElement, Matrix, ZZ)
     Headline
         finds a lower bound for a polynomial
     Usage
         (bound,mon,Q,X) = lowerBound(f)
         (bound,mon,Q,X) = lowerBound(f,D)
-        (bound,mon,Q,X) = lowerBound(f, h, D)
+        (bound,mon,Q,X,mult) = lowerBound(f, h, D)
     Inputs
         f:RingElement
           a polynomial
@@ -769,7 +769,7 @@ doc /// --RndTol
         RndTol
         [solveSOS,RndTol]
     Headline
-        construct a block diagonal matrix
+        rounding precision
     Consequences
     Description
       Text
