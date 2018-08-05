@@ -30,7 +30,6 @@ export {
     "sosdec",
     "sosdecTernary",
     "sumSOS",
-    "blkDiag",
     "LDLdecomposition",
     "solveSDP",
     "makeMultiples",
@@ -221,11 +220,11 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     else verbose("Solving SOS optimization problem...", o);
 
     if np!=0 and #bounds==2 then (
-        C = blkDiag(C,diagonalMatrix(-bounds#0),diagonalMatrix(bounds#1));
-        Ai = for i to #Ai-1 list blkDiag(Ai_i, zeros(kk,2*np,2*np));
-        Bi = for i to #Bi-1 list blkDiag(Bi_i, 
-            map(kk^np,kk^np, (j,k) -> if j==k and j==i then 1_kk else 0_kk),
-            map(kk^np,kk^np, (j,k) -> if j==k and j==i then -1_kk else 0_kk));
+        C = C ++ diagonalMatrix(-bounds#0) ++ diagonalMatrix(bounds#1);
+        Ai = for i to #Ai-1 list Ai_i ++ zeros(kk,2*np,2*np);
+        Bi = for i to #Bi-1 list Bi_i ++
+            map(kk^np,kk^np, (j,k) -> if j==k and j==i then 1_kk else 0_kk) ++
+            map(kk^np,kk^np, (j,k) -> if j==k and j==i then -1_kk else 0_kk);
         );
 
 
@@ -640,23 +639,6 @@ LDLdecomposition = (A) -> (
      P := submatrix(id_(kk^n),toList piv);
      (A,D,P,err)
 )
-
-blkDiag = args -> (
-     args = sequence args;
-     if #args<2 then error ("expected at least 2 input arguments.");
-
-     r := ring args#0;
-     B := args#0;
-
-     for i from 2 to #args do (
-      n1 := numgens source B;
-           m1 := numgens source B;
-           n2 := numgens source args#(i-1);
-           m2 := numgens source args#(i-1);
-      B = matrix{{B,map(r^m1,n2,(i,j)->0_r)},{map(r^m2,r^n1,(i,j)->0),args#(i-1)}};
-      );
-     return B;
-     )
 
 --###################################
 -- SOS IDEAL
@@ -1606,15 +1588,6 @@ TEST /// --createSOSModel
     assert( equal(eval(C,mon), x^4 - 2*x) )
     assert( #Ai==1 and equal(eval(Ai#0,mon), 0) )
     assert( #Bi==1 and equal(eval(Bi#0,mon), 1) )
-///
-
-TEST /// --blkDiag
-    A1=matrix{{1,0},{0,2}}
-    A2=matrix{{1,1,3},{4,2,5},{2,1,1}}
-    assert(blkDiag(A1,A2)==matrix{{1,0,0,0,0},{0,2,0,0,0},{0,0,1,1,3},{0,0,4,2,5},{0,0,2,1,1}})
-    A1=matrix{{1.4,0,2.5},{0,2,1.9},{1.2,3,6.1}}
-    A2=matrix{{2.6,1,0},{4.1,2.6,5},{1.5,1,1}}
-    assert(blkDiag(A1,A2)==matrix{{1.4,0,2.5,0,0,0},{0,2,1.9,0,0,0},{1.2,3,6.1,0,0,0},{0,0,0,2.6,1,0},{0,0,0,4.1,2.6,5},{0,0,0,1.5,1,1}})
 ///
 
 TEST /// --LDLdecomposition

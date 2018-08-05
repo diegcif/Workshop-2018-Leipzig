@@ -508,34 +508,6 @@ doc /// --LDLdecomposition
     SeeAlso
 ///
 
-doc /// --blkDiag
-    Key
-        blkDiag
-    Headline
-        construct a block diagonal matrix
-    Usage
-        D = blkDiag(A1,A2,...,An)
-    Inputs
-        Ai:
-          square matrices
-    Outputs
-        D:
-          block diagonal matrix
-    Consequences
-    Description
-      Text
-        This method returns the block diagonal matrix with blocks 
-        $A1,A2,...,An.$
-      Example
-        A1 = matrix {{0,1},{1,0}};
-        A2 = matrix {{1,2},{2,2}};
-        A3 = matrix {{3}};
-        blkDiag(A1,A2,A3)
-      Code
-      Pre
-    SeeAlso
-///
-
 doc /// --solveSDP
     Key
         solveSDP
