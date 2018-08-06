@@ -229,8 +229,6 @@ doc /// --solveSOS
           a linear function of the parameters (optional)
         mon:Matrix
           a vector of monomials (optional)
-        ParBounds:List
-          a lower and upper bound for the parameters (optional)
     Outputs
         Q:Matrix
           the $n\times n$ Gram matrix of the polynomial f

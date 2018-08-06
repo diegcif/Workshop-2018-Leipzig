@@ -55,8 +55,7 @@ export {
     "Solver",
     "TraceObj",
     "EigTol",
-    "Scaling",
-    "ParBounds"
+    "Scaling"
 }
 
 --##########################################################################--
@@ -185,7 +184,7 @@ sosdec = (mon,Q) -> (
 
 -- internal way to call solveSOS
 rawSolveSOS = method(
-     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false} )
  
 rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     -- f is a polynomial to decompose
@@ -193,16 +192,13 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     -- objFcn is a linear objective function for the SDP solver
     -- bounds can be empty or contain lower and upper bounds for the parameters
 
-    checkInputs := (mon,bounds) -> (
+    checkInputs := (mon) -> (
         if numColumns mon > 1 then error("Monomial vector should be a column.");
         isMonomial := max(length \ terms \ flatten entries mon)==1;
         if not isMonomial then error("Vector must consist of monomials.");
-        if not member(#bounds,{0,2}) then 
-            error "ParBounds should be a list with two elements";
         );
 
-    bounds := o.ParBounds;
-    checkInputs(mon,bounds);
+    checkInputs(mon);
     kk := coefficientRing ring F;
          
     -- build SOS model --     
@@ -219,19 +215,9 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     if obj==0 then verbose( "Solving SOS feasibility problem...", o)
     else verbose("Solving SOS optimization problem...", o);
 
-    if np!=0 and #bounds==2 then (
-        C = C ++ diagonalMatrix(-bounds#0) ++ diagonalMatrix(bounds#1);
-        Ai = for i to #Ai-1 list Ai_i ++ zeros(kk,2*np,2*np);
-        Bi = for i to #Bi-1 list Bi_i ++
-            map(kk^np,kk^np, (j,k) -> if j==k and j==i then 1_kk else 0_kk) ++
-            map(kk^np,kk^np, (j,k) -> if j==k and j==i then -1_kk else 0_kk);
-        );
-
-
     (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (mon,Q,X,);
     y := -my;
-    if #bounds==2 then Q = Q^{0..ndim-1}_{0..ndim-1};
     pvec0 := flatten entries y^(toList(0..np-1));
 
     if kk=!=QQ then return (mon,Q,X,pvec0);
@@ -256,7 +242,7 @@ rawSolveSOS(Matrix) := o -> (F) ->
 -- This is the main method to decompose a polynomial as a 
 -- sum of squares using an SDP solver.
 solveSOS = method(
-     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false, ParBounds=>{}} )
+     Options => {RndTol => 3, Solver=>"M2", Verbose => false, TraceObj => false} )
 
 solveSOS(RingElement,RingElement,Matrix) := o -> (f,objFcn,mon) -> (
     (F,objP) := parameterVector(f,objFcn);
