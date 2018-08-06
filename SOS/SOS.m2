@@ -360,21 +360,28 @@ createSOSModel(RingElement,Matrix) := o -> (f,v) -> (
 createSOSModel(Matrix,Matrix) := o -> (F,v) -> (
     kk := coefficientRing ring F;
     np := numRows F - 1;
+    n := numRows v;
     
     -- monomials in vvT
     vvT := entries(v* transpose v);
-    mons := g -> first entries monomials g;
-    K := sort \\ unique \\ flatten \\ mons \ flatten vvT;
+    mons := g -> set first entries monomials g;
+    K1 := toList \\ sum \\ mons \ flatten vvT;
+
+    -- monomials in F and not in vvT
+    lmf := sum \\ mons \ flatten entries F;
+    K2 := toList(lmf - K1);
+    K := K1 | K2;
     
     -- Linear constraints: b
-    b := map(kk^#K,kk^1, (i,j) -> coefficient(K#i,F_(0,0)) );
+    b := map(kk^#K, kk^1, (i,j) -> coefficient(K#i,F_(0,0)) );
     
     -- Linear constraints: A, B
     coeffMat := (x,A) -> applyTable(A, a -> coefficient(x,a));
-    A := matrix(kk, for i to #K-1 list smat2vec(coeffMat(K_i, vvT),Scaling=>2) );
+    A := matrix(kk, for i to #K1-1 list smat2vec(coeffMat(K1_i, vvT),Scaling=>2) );
+    A = A || zeros(kk,#K2,n*(n+1)//2);
     
     -- Consider search-parameters:
-    B := map(kk^#K,kk^np, (i,j) -> -coefficient(K#i, F_(j+1,0)) );
+    B := map(kk^#K, kk^np, (i,j) -> -coefficient(K#i, F_(j+1,0)) );
     
     (C,Ai,Bi) := getImageModel(A,B,b);
     
@@ -780,7 +787,7 @@ lowerBound(RingElement,Matrix,ZZ) := o -> (f,h,D) -> (
         {RndTol=>o.RndTol, Solver=>o.Solver, Verbose=>o.Verbose};
     mon := if isQuotientRing R then transpose basis(0,D//2,R)
         else choosemonp (F,Verbose=>o.Verbose);
-    if mon===null then return (,);
+    if mon===null then return (,,,,);
     (mon',Q,X,tval) := rawSolveSOS(F,objP,mon,o');
     bound := if tval=!=null then tval#0;
     mult := getMultipliers(m,drop(tval,1),ring mon');
