@@ -775,8 +775,10 @@ lowerBound(RingElement,Matrix,ZZ) := o -> (f,h,D) -> (
         else choosemonp (F,Verbose=>o.Verbose);
     if mon===null then return (,,,,);
     (mon',Q,X,tval) := rawSolveSOS(F,objP,mon,o');
-    bound := if tval=!=null then tval#0;
-    mult := getMultipliers(m,drop(tval,1),ring mon');
+    if tval=!=null then(
+        bound := tval#0;
+        mult := getMultipliers(m,drop(tval,1),ring mon');
+    )else (bound,mult) = (,);
     return (bound,mon,Q,X,mult);
     )
 
@@ -936,9 +938,7 @@ simpleSDP(Matrix, Sequence, Matrix, Matrix) := o -> (C,A,b,y) -> (
             g := map(R^m,R^1,(i,j) -> b_(i,0)/mu + trace(Sinv*A_i));
             
             -- compute damped Newton step:
-            try dy := -g//H else (
-                print "Newton step has no solution";
-                return (,) );
+            dy := -solve(H,g,ClosestFit=>true);
             alpha := backtrack(S, -sum for i to m-1 list matrix(dy_(i,0) * entries A_i));
             if alpha===null then return (,);
             y = y + transpose matrix {alpha* (flatten entries dy)};
