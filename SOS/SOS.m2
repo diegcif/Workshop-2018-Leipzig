@@ -41,6 +41,7 @@ export {
     "vec2smat",
     "recoverSolution",
 --only for debugging
+    "kernelGens",
     "parameterVector",
     "createSOSModel",
     "choosemonp",
@@ -202,30 +203,30 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     kk := coefficientRing ring F;
          
     -- build SOS model --     
-    (C,Ai,Bi,A,B,b) := createSOSModel(F,mon,Verbose=>o.Verbose);
+    (C,Ai,p0,V,A,B,b) := createSOSModel(F,mon,Verbose=>o.Verbose);
 
     ndim := numRows C;
     np := numRows objP;
 
     obj := 
         if o.TraceObj then
-            map(RR^(#Bi),RR^1,(i,j)-> -trace Bi#i) || map(RR^(#Ai),RR^1,(i,j)-> -trace Ai#i)
+            map(RR^(#Ai),RR^1,(i,j)-> -trace Ai#i)
         else
-            (-objP) || zeros(kk,#Ai,1); 
+            -(transpose V * objP); 
     if obj==0 then verbose( "Solving SOS feasibility problem...", o)
     else verbose("Solving SOS optimization problem...", o);
 
-    (my,X,Q) := solveSDP(C, Bi | Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
+    (my,X,Q) := solveSDP(C, Ai, obj, Solver=>o.Solver, Verbose=>o.Verbose);
     if Q===null then return (mon,Q,X,);
     y := -my;
-    pvec0 := flatten entries y^(toList(0..np-1));
+    pvec0 := flatten entries(p0 + V*y);
 
     if kk=!=QQ then return (mon,Q,X,pvec0);
     if o.RndTol==infinity then
         return (changeMatrixField(RR,mon),Q,X,pvec0);
 
     -- rational rounding --
-    (ok,Qp,pVec) := roundSolution(y,Q,A,B,b,o.RndTol);
+    (ok,Qp,pVec) := roundSolution(pvec0,Q,A,B,b,o.RndTol);
     if ok then return (mon,Qp,X,pVec);
     print "rounding failed, returning real solution";
     return (changeMatrixField(RR,mon),Q,X,pvec0);
@@ -314,7 +315,7 @@ liftMonomial = (S,f) -> (
     return S_e;
     )
 
-roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
+roundSolution = {Verbose=>false} >> o -> (pvec0,Q,A,B,b,RndTol) -> (
     -- round and project --
     Qnum := matrix applyTable(entries Q, a -> round(a*2^52)/2^52);
 
@@ -325,7 +326,7 @@ roundSolution = {Verbose=>false} >> o -> (y,Q,A,B,b,RndTol) -> (
     while (d < dhi) do (
         verbose("rounding step #" | d, o);
         if np!=0 then (
-           pVec := map(QQ^np,QQ^1,(i,j) -> round(y_(i,0)*2^d)/2^d);
+           pVec := map(QQ^np,QQ^1,(i,j) -> round(pvec0_i*2^d)/2^d);
            bPar := b - B*pVec;
            ) 
         else bPar= b;
@@ -369,29 +370,34 @@ createSOSModel(Matrix,Matrix) := o -> (F,v) -> (
     -- Consider search-parameters:
     B := map(kk^#K, kk^np, (i,j) -> -coefficient(K#i, F_(j+1,0)) );
     
-    (C,Ai,Bi) := getImageModel(A,B,b);
+    (C,Ai,p0,V) := getImageModel(A,B,b);
     
-    return (C,Ai,Bi,A,B,b);
+    return (C,Ai,p0,V,A,B,b);
     )
 
 getImageModel = (A,B,b) -> (
+    -- given the affine subspace {Aq + Bp = b}
+    -- find a parametrization of the form
+    -- Q = C + sum_i ti Ai
+    -- p = p0 + V t
+
     -- compute the C matrix
-    c := b//A;
+    n1 := numColumns A;
+    n2 := numColumns B;
+    AB := A|B;
+    x := linsolve(AB,b);
+    c := x^{0..n1-1};
+    p0 := x^{n1..n1+n2-1};
     C := vec2smat(c);
-    -- compute the B_i matrices
-    np := numColumns B;
-    if np!=0 then (
-        bi := -B//A;
-        Bi := toSequence for k to np-1 list
-            vec2smat(bi_{k});
-    )else Bi = ();
+    
     -- compute the A_i matrices     
-    v := - kernelGens A;
+    W := - kernelGens AB;
+    r := numColumns W;
+    U := W^{0..n1-1};
+    V := W^{n1..n1+n2-1};
+    Ai := toSequence for k to r-1 list vec2smat(U_{k});
 
-    Ai := toSequence for k to (rank v)-1 list
-        vec2smat(v_{k});
-
-    return (C,Ai,Bi);
+    return (C,Ai,p0,V);
     )
 
 parameterVector = method()
@@ -416,6 +422,15 @@ parameterVector(RingElement,RingElement) := (f,objFcn) -> (
     return (F,objP);
     )
 parameterVector(RingElement) := (f) -> first parameterVector(f,0_(ring f))
+
+linsolve = (A,b) -> (
+    if ring A === QQ or ring A === ZZ then
+        return try solve(A,b);
+    tol := 1e-12;
+    x := solve(A,b,ClosestFit=>true);
+    if norm(A*x-b) > tol then return;
+    return x;
+    )
 
 kernelGens = A -> (
     if ring A === QQ or ring A === ZZ then
@@ -794,6 +809,7 @@ solveSDP(Matrix, Matrix, Matrix) := o -> (C,A,b) -> solveSDP(C,sequence A,b,o)
 solveSDP(Matrix, Matrix, Matrix, Matrix) := o -> (C,A,b,y) -> solveSDP(C,sequence A,b,y,o)
 
 solveSDP(Matrix, Sequence, Matrix) := o -> (C,A,b) -> (
+    if numRows b=!=#A then error "Bad matrix dimensions.";
     (C,A,b) = toReal(C,A,b);
     (ok,y,X,Z) := (,,,);
     (ok,y,X,Z) = sdpNoConstraints(C,A,b);
@@ -1224,9 +1240,9 @@ checkSolveSDP = solver -> (
     test := {t0,t1,t2,t3,t4};
     informAboutTests test;
     -- trivial cases
-    (y,X,Z) = solveSDP (matrix{{1,0},{0,-1}},(),matrix{{}},Solver=>solver);
+    (y,X,Z) = solveSDP (matrix{{1,0},{0,-1}},(),zeros(QQ,0,1),Solver=>solver);
     assert(y===null and X===null);
-    (y,X,Z) = solveSDP (matrix{{1,0},{0,1}},(),matrix{{}},Solver=>solver);
+    (y,X,Z) = solveSDP (matrix{{1,0},{0,1}},(),zeros(QQ,0,1),Solver=>solver);
     assert(y==0);
     return test;
     )
@@ -1248,6 +1264,8 @@ checkSolveSOS = solver -> (
             return f == transpose(mon)*Q*mon;
         return norm(sub(f,S) - transpose(mon)*Q*mon) < tol;
         );
+    isGramParam := (f,mon,Q,tval) ->
+        if tval===null then false else isGram(sub(f,t=>tval#0),mon,Q);
     ---------------GOOD CASES1---------------
     -- Test 0
     R := QQ[x,y];
@@ -1275,8 +1293,8 @@ checkSolveSOS = solver -> (
     -- Test 4 (parametric)
     R = QQ[x][t];
     f = (t-1)*x^4+1/2*t*x+1;
-    (mon,Q,X,tval) = solveSOS (f);
-    t4 := isGram(sub(f,t=>tval#0),mon,Q);
+    (mon,Q,X,tval) = solveSOS (f,Solver=>solver);
+    t4 := isGramParam(f,mon,Q,tval);
 
     ---------------BAD CASES1---------------
     -- Test 5
@@ -1556,19 +1574,23 @@ TEST /// --createSOSModel
     R = QQ[x][t];
     f = x^4 - 2*x + t;
     mon = matrix{{1},{x},{x^2}}
-    (C,Ai,Bi,A,B,b) = createSOSModel(f,mon)
+    (C,Ai,p0,V,A,B,b) = createSOSModel(f,mon)
     assert( eval(C,mon) == x^4 - 2*x )
-    assert( #Ai==1 and eval(Ai#0,mon) == 0 )
-    assert( #Bi==1 and eval(Bi#0,mon) == 1 )
+    assert( #Ai==2 and all({0,1}, j -> eval(Ai#j,mon) == V_(0,j)) )
     
     equal = (f1,f2) -> norm(f1-f2) < 1e-8;
     R = RR[x][t];
     f = x^4 - 2*x + t;
     mon = matrix{{1},{x},{x^2}}
-    (C,Ai,Bi,A,B,b) = createSOSModel(f,mon)
+    (C,Ai,p0,V,A,B,b) = createSOSModel(f,mon)
     assert( equal(eval(C,mon), x^4 - 2*x) )
-    assert( #Ai==1 and equal(eval(Ai#0,mon), 0) )
-    assert( #Bi==1 and equal(eval(Bi#0,mon), 1) )
+    assert( #Ai==2 and all({0,1}, j -> equal(eval(Ai#j,mon), V_(0,j))) )
+    
+    R = QQ[x,y][t]
+    f = x^2+2*x + t*(y+1)
+    mon = matrix{{1},{x}}
+    (C,Ai,p0,V,A,B,b) = createSOSModel(f,mon) --infeasible
+    assert(entries C=={{0,1},{1,1}} and #Ai==0 and p0==0)
 ///
 
 TEST /// --LDLdecomposition
