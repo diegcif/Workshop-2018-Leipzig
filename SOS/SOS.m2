@@ -17,6 +17,13 @@ newPackage(
     DebuggingMode => true,
     Configuration => {"CSDPexec"=>"csdp","SDPAexec"=>"sdpa"},
     AuxiliaryFiles => true,
+    -*
+    The following two settings make use of a cached version of example output.
+    When the documentation changes, the developer has to exchange true and
+    false below, create the new example files, commit them, and change it back.
+    *-
+    UseCachedExampleOutput => true,
+    CacheExampleOutput => false,
     PackageImports => {"SimpleDoc","FourierMotzkin","NumericalHilbert"},
     PackageExports => {}
 )
@@ -663,7 +670,14 @@ makeMultiples = (h, D, homog) -> (
 
 sosInIdeal = method(
      Options => {RndTol => 3, Solver=>"CSDP", Verbose => false} )
-sosInIdeal(Matrix,ZZ) := o -> (h,D) -> (
+sosInIdeal (Ideal, ZZ) := o -> (I,D) -> (
+    -- Find a sum of squares in an ideal
+    -- It does not return the multpliers of the generators as
+    -- these are relative to the generators, which are not fixed.
+    (a,mult) := sosInIdeal (gens I, D);
+    return a
+    )
+sosInIdeal (Matrix,ZZ) := o -> (h,D) -> (
     -- h is a row vector of polynomials
     -- D is a degree bound
     -- returns sos polynomial in <h>
