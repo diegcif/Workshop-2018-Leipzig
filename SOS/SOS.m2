@@ -63,8 +63,13 @@ export {
 -- GLOBAL VARIABLES 
 --##########################################################################--
 
-csdpexec=((options SOS).Configuration)#"CSDPexec"
-sdpaexec=((options SOS).Configuration)#"SDPAexec"
+makeGlobalPath = (fname) -> (
+    if first fname != "/" then fname = currentDirectory() | fname;
+    return "'" | fname | "'";
+    )
+
+csdpexec = makeGlobalPath ((options SOS).Configuration)#"CSDPexec"
+sdpaexec = ((options SOS).Configuration)#"SDPAexec"
 
 --##########################################################################--
 -- TYPES
@@ -1001,15 +1006,18 @@ backtrack = args -> (
 
 solveCSDP = method( Options => {Verbose => false} )
 solveCSDP(Matrix,Sequence,Matrix) := o -> (C,A,b) -> (
+    -- CSDP expects the file fparam to be in the working directory.
+    -- That's why we need to change directory before executing csdp.
     n := numColumns C;
     fin := getFileName ".dat-s";
-    fparam := "param.csdp";
+    (dir,fin1) := splitFileName(fin);
+    fparam := dir | "param.csdp";
     fout := getFileName "";
     fout2 := getFileName "";
     writeSDPA(fin,C,A,b);
     writeCSDPparam(fparam);
     print("Executing CSDP on file " | fin);
-    r := run(csdpexec | " " | fin | " " | fout | ">" | fout2);
+    r := run("cd " | dir | " && " | csdpexec | " " | fin1 | " " | fout | ">" | fout2);
     if r == 32512 then error "csdp executable not found";
     print("Output saved on file " | fout);
     (y,X,Z) := readCSDP(fout,fout2,n,o.Verbose);
@@ -1022,6 +1030,13 @@ getFileName = (ext) -> (
      while fileExists(filename) do filename = temporaryFileName();
      return filename
 )
+
+splitFileName = (fname) -> (
+    s := separate("/",fname);
+    dir := demark("/",drop(s,-1))|"/";
+    file := last s;
+    return (dir,file);
+    )
 
 writeSDPA = (fin,C,A,b) -> (
     digits := 16;
