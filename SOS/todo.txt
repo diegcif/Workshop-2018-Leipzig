@@ -106,30 +106,16 @@ Methods whose documentation needs improvement
 ######### Comments and discussion ######
 ########################################
 
-1) The randomness of the SDP solvers is a severe problem, for example
-for the tests.  If a routine fails 1 out of 10 times, how should it be
-    diego: ideally we should only export cases tha are reliable,
-        at least with CSDP tested?
-
 2) The function sosInIdeal is worthless if it can't even solve
     R = QQ[x,y,z];
     h = {x-y, x+z};
     (s,mult) = sosInIdeal (h,10, Solver=>"CSDP");
-    diego: it works now even for d=2!
+    diego: it seems to work with d=4, why did you choose d=10??
+    --> The result is too complicated.  This may be a bug.
 
 3) Maybe we should implement that each RingMap can be applied to an
    SOSpoly?
-
-4) Should toRing really be in the interface of the package?  Maybe it
-   would be better to have functions "makeCoefficientsRational" and
-   "makeCoefficientsReal"?  The functions also have the problem that
-   they assume that the user wants to change the coefficient field and
-   the code is not taking care of the case that both coefficient
-   fields are real or both rational.  If we include the function we
-   should define its interface first.
-   diego: my plan was to not export it. It's exported now for debugging purposes.
-
-5) LDLdecomposition fails for {{1, -1, 1}, {-1, 1, 1}, {1, 1, 1}}
+   TK does it if it is easy (5 lines).
 
 6) The following example only works with SDPA, but not M2 and not
    CSDP.  Can we do anything about it?
