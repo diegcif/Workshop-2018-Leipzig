@@ -74,12 +74,7 @@ Known bugs:
 7) The following works over QQ but fails over RR (true solution -.178)
     R = RR[x,z]
     f = x^4+x^2+z^6-3*x^2*z^2;
-    (bound,sol) = lowerBound (f,Solver=>"SDPA");
-
-8) CSDP fails for the following problem, but works if we round the entries.
-    C = matrix {{8, 0, -4}, {0, 2, -3.14159265358979}, {-4, -3.14159265358979, 10.8696044010894}}
-    A1 = matrix {{.707106781186547, 0, 0}, {0, 0, 0}, {0, 0, 0}}
-    b = matrix {{-.707107}}
+    (bound,mon,Q,X) = lowerBound (f,Solver=>"SDPA");
 
 #########################
 ##### DOCUMENTATION #####
