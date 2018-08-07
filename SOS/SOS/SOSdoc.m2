@@ -686,8 +686,8 @@ doc /// --lowerBound
       Example
         R = QQ[x,y];
         f = y;
-        h1 = y-x^2;
-        (bound,mon,Q,X) = lowerBound (f, {h1}, 4);
+        h = matrix{{y-x^2}};
+        (bound,mon,Q,X,mult) = lowerBound (f, h, 4);
         bound
       Text
         The method also works in quotient rings.
