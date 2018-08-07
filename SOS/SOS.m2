@@ -17,6 +17,13 @@ newPackage(
     DebuggingMode => true,
     Configuration => {"CSDPexec"=>"csdp","SDPAexec"=>"sdpa"},
     AuxiliaryFiles => true,
+    -*
+    The following two settings make use of a cached version of example output.
+    When the documentation changes, the developer has to exchange true and
+    false below, create the new example files, commit them, and change it back.
+    *-
+    UseCachedExampleOutput => true,
+    CacheExampleOutput => false,
     PackageImports => {"SimpleDoc","FourierMotzkin","NumericalHilbert"},
     PackageExports => {}
 )
