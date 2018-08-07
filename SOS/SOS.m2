@@ -1003,9 +1003,11 @@ solveCSDP = method( Options => {Verbose => false} )
 solveCSDP(Matrix,Sequence,Matrix) := o -> (C,A,b) -> (
     n := numColumns C;
     fin := getFileName ".dat-s";
+    fparam := "param.csdp";
     fout := getFileName "";
     fout2 := getFileName "";
     writeSDPA(fin,C,A,b);
+    writeCSDPparam(fparam);
     print("Executing CSDP on file " | fin);
     r := run(csdpexec | " " | fin | " " | fout | ">" | fout2);
     if r == 32512 then error "csdp executable not found";
@@ -1045,6 +1047,27 @@ writeSDPA = (fin,C,A,b) -> (
     );
     f << close;
 )
+
+writeCSDPparam = (fparam) -> (
+    f := openOut fparam;
+    f << "axtol=1.0e-8" << endl;
+    f << "atytol=1.0e-8" << endl;
+    f << "objtol=1.0e-8" << endl;
+    f << "pinftol=1.0e8" << endl;
+    f << "dinftol=1.0e8" << endl;
+    f << "maxiter=100" << endl;
+    f << "minstepfrac=0.90" << endl;
+    f << "maxstepfrac=0.97" << endl;
+    f << "minstepp=1.0e-8" << endl;
+    f << "minstepd=1.0e-8" << endl;
+    f << "usexzgap=1" << endl;
+    f << "tweakgap=0" << endl;
+    f << "affine=0" << endl;
+    f << "printlevel=1" << endl;
+    f << "perturbobj=0" << endl;
+    f << "fastmode=0" << endl;
+    f << close;
+    )
 
 readCSDP = (fout,fout2,n,Verbose) -> (
     sdpa2matrix := s -> (
