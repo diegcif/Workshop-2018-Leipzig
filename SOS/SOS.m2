@@ -665,7 +665,14 @@ makeMultiples = (h, D, homog) -> (
 
 sosInIdeal = method(
      Options => {RndTol => 3, Solver=>"CSDP", Verbose => false} )
-sosInIdeal(Matrix,ZZ) := o -> (h,D) -> (
+sosInIdeal (Ideal, ZZ) := o -> (I,D) -> (
+    -- Find a sum of squares in an ideal
+    -- It does not return the multpliers of the generators as
+    -- these are relative to the generators, which are not fixed.
+    (a,mult) := sosInIdeal (gens I, D);
+    return a
+    )
+sosInIdeal (Matrix,ZZ) := o -> (h,D) -> (
     -- h is a row vector of polynomials
     -- D is a degree bound
     -- returns sos polynomial in <h>
