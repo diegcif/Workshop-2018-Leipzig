@@ -24,7 +24,7 @@ newPackage(
     *-
     UseCachedExampleOutput => true,
     CacheExampleOutput => false,
-    PackageImports => {"SimpleDoc","FourierMotzkin","NumericalHilbert"},
+    PackageImports => {"SimpleDoc","FourierMotzkin"},
     PackageExports => {}
 )
 
@@ -48,6 +48,7 @@ export {
     "vec2smat",
     "recoverSolution",
 --only for debugging
+    "truncatedSVD",
     "kernelGens",
     "parameterVector",
     "createSOSModel",
@@ -176,6 +177,81 @@ clean(RR,SOSPoly) := (tol,s) -> (
 verbose = (s,o) -> if o.Verbose then print s
 
 --###################################
+-- basicLinearAlgebra
+--###################################
+
+isExactField = kk -> (
+    try (kk = ring kk);
+    kk = ultimate(coefficientRing,kk);
+    return precision 1_kk == infinity;
+    )
+
+linsolve = (A,b) -> (
+    if isExactField A then return try solve(A,b);
+    tol := 1e-12;
+    x := solve(A,b,ClosestFit=>true);
+    if norm(A*x-b) > tol then return;
+    return x;
+    )
+
+truncatedSVD = (A,tol) -> (
+    -- truncate small (or big) singular values
+    (S, U, Vt) := SVD A;
+    idx := positions(S, s->(s > abs tol));
+    if tol>0 then(
+        S = take(S,#idx);
+        U = submatrix(U,,idx);
+        Vt = submatrix(Vt,idx,);
+    )else(
+        S = drop(S,#idx);
+        U = submatrix'(U,,idx);
+        Vt = submatrix'(Vt,idx,); );
+    return (S,U,Vt);
+    )
+
+kernelGens = A -> (
+    if isExactField A then return gens kernel A;
+    tol := 1e-12;
+    (S,U,Vt) := truncatedSVD(A,-tol);
+    return transpose Vt;
+    )
+
+zeros = (kk,m,n) -> map(kk^m,kk^n,{})
+
+smat2vec = method( Options => {Scaling => 1} )
+smat2vec(List) := o -> A -> (
+    n := #A;
+    v := for i to n-1 list
+        for j from i to n-1 list 
+            if i==j then A#i#j else o.Scaling*A#i#j;
+    return flatten v;
+    )
+smat2vec(Matrix) := o -> A -> matrix(ring A, apply(smat2vec(entries A,o), a->{a}))
+smat2vec(Sequence) := o -> matrices -> (
+    A0 := matrices#0;
+    ismat := instance(A0,Matrix);
+    if ismat then matrices = entries \ matrices;
+    vects := for Ai in matrices list smat2vec(Ai,o);
+    if ismat then vects = matrix(ring A0, vects);
+    return vects;
+    )
+
+vec2smat = method( Options => {Scaling => 1} )
+vec2smat(List) := o -> v -> (
+    N := #v;
+    n := (-1 + round sqrt(1+8*N))//2;
+    ct := -1;
+    L := for i to n-1 list (toList(i:0) |
+        for j from i to n-1 list (ct = ct+1; ct));
+    A := table(toList(0..n-1), toList(0..n-1), (i,j) -> 
+        if i==j then v_(L#i#j) 
+        else if i<j then v_(L#i#j)/(o.Scaling)
+        else v_(L#j#i)/(o.Scaling) );
+    return A;
+    )
+vec2smat(Matrix) := o -> v -> matrix(ring v, vec2smat(flatten entries v,o))
+
+--###################################
 -- solveSOS
 --###################################
 
@@ -233,7 +309,7 @@ rawSolveSOS(Matrix,Matrix,Matrix) := o -> (F,objP,mon) -> (
     y := -my;
     pvec0 := flatten entries(p0 + V*y);
 
-    if kk=!=QQ then return (mon,Q,X,pvec0);
+    if not isExactField kk then return (mon,Q,X,pvec0);
     if o.RndTol==infinity then
         return (changeMatrixField(RR,mon),Q,X,pvec0);
 
@@ -305,18 +381,17 @@ toRing (Ring, SOSPoly) := (S, s) -> (
     -- maps s to Ring S
     R := ring s;
     kk := coefficientRing R;
-    if kk===QQ then (
-	-- switching from QQ to RR coefficients
-	return sosPoly (S, (x -> sub (x, S)) \ gens s,
-	    (q -> sub (q, kk)) \ coefficients s)
-	);
-    if class kk === RealField and coefficientRing S===QQ then (
+    -- QQ => RR
+    if kk===QQ then 
+        return sosPoly (S, (x -> sub (x, S)) \ gens s,
+            (q -> sub (q, kk)) \ coefficients s);
+    -- RR => QQ
+    if not(class kk === RealField and coefficientRing S===QQ) then 
+        error "Error: only conversion between real and rational coefficient fields is implemented.";
 	g' := toRing_S \ gens s;
 	K := 2^(precision kk);
 	c' := for c in coefficients s list round(K*sub(c,RR))/K;
 	return sosPoly (S, g', c')
-	);
-    error "Error: only conversion between real and rational coefficient fields is implemented."
     )
 
 liftMonomial = (S,f) -> (
@@ -435,50 +510,6 @@ parameterVector(RingElement,RingElement) := (f,objFcn) -> (
     )
 parameterVector(RingElement) := (f) -> first parameterVector(f,0_(ring f))
 
-linsolve = (A,b) -> (
-    if ring A === QQ or ring A === ZZ then
-        return try solve(A,b);
-    tol := 1e-12;
-    x := solve(A,b,ClosestFit=>true);
-    if norm(A*x-b) > tol then return;
-    return x;
-    )
-
-kernelGens = A -> (
-    if ring A === QQ or ring A === ZZ then
-        return generators kernel A;
-    tol := 1e-12;
-    return numericalKernel(A,tol);
-    )
-
-zeros = (kk,m,n) -> map(kk^m,kk^n,{})
-
-smat2vec = method( Options => {Scaling => 1} )
-smat2vec(List) := o -> A -> (
-    n := #A;
-    v := for i to n-1 list
-        for j from i to n-1 list 
-            if i==j then A#i#j else o.Scaling*A#i#j;
-    return flatten v;
-    )
-smat2vec(Matrix) := o -> A -> matrix(ring A, apply(smat2vec(entries A,o), a->{a}))
-
-vec2smat = method( Options => {Scaling => 1} )
-vec2smat(List) := o -> v -> (
-    N := #v;
-    n := (-1 + round sqrt(1+8*N))//2;
-    ct := -1;
-    L := for i to n-1 list (toList(i:0) |
-        for j from i to n-1 list (ct = ct+1; ct));
-    A := table(toList(0..n-1), toList(0..n-1), (i,j) -> 
-        if i==j then v_(L#i#j) 
-        else if i<j then v_(L#i#j)/(o.Scaling)
-        else v_(L#j#i)/(o.Scaling) );
-    return A;
-    )
-
-vec2smat(Matrix) := o -> v -> matrix(ring v, vec2smat(flatten entries v,o))
-
 choosemonp = method(
     Options => {Verbose => false} )
 choosemonp(RingElement) := o -> (f) -> (
@@ -590,7 +621,7 @@ roundPSDmatrix = {Verbose=>false} >> o -> (Q,A,b,d) -> (
 
 PSDdecomposition = (A) -> (
     kk := ring A;
-    if kk===QQ then
+    if isExactField kk then
         return LDLdecomposition(A);
     if kk=!=RR and not instance(kk,RealField) then
         error "field must be QQ or RR";
@@ -608,7 +639,7 @@ LDLdecomposition = (A) -> (
      if kk=!=QQ and kk=!=RR and not instance(kk,RealField) then
         error "field must be QQ or RR";
      if transpose A != A then error("Matrix must be symmetric.");
-     tol := if kk===QQ then 0 else 1e-9;
+     tol := if isExactField kk then 0 else 1e-9;
 
      n := numRows A;
      Ah := new MutableHashTable; map (kk^n,kk^n,(i,j)->Ah#(i,j) = A_(i,j));
@@ -691,7 +722,7 @@ sosInIdeal (Matrix,ZZ) := o -> (h,D) -> (
     (H,m) := makeMultiples(first entries h, D, homog);
     F := matrix transpose {{0}|H};
     (mon,Q,X,tval) := rawSolveSOS (F, o);
-    if Q===null or Q==0 or (ring Q=!=QQ and norm Q<1e-6) then (
+    if Q===null or Q==0 or (not isExactField Q and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
 	);
@@ -1312,7 +1343,7 @@ checkSolveSOS = solver -> (
         tol := 1e-8;
         if min e < -tol then return false;
         S := ring mon;
-        if coefficientRing S===QQ then
+        if isExactField S then
             return f == transpose(mon)*Q*mon;
         return norm(sub(f,S) - transpose(mon)*Q*mon) < tol;
         );
@@ -1373,7 +1404,7 @@ checkSosdecTernary = solver -> (
     cmp := (f,p,q) -> (
         if p===null then return false;
         d := product(sumSOS\p) - f*product(sumSOS\q);
-        if coefficientRing ring f===QQ then return d==0;
+        if isExactField ring f then return d==0;
         return norm(d) < 1e-4;
         );
 
@@ -1409,7 +1440,7 @@ checkSosInIdeal = solver -> (
     cmp := (h,s,mult) -> (
         if s===null then return false;
         d := (h*mult)_(0,0) - sumSOS s;
-        if coefficientRing ring h===QQ then return d==0;
+        if isExactField h then return d==0;
         return norm(d)<1e-4;
         );
 
@@ -1458,7 +1489,7 @@ checkLowerBound = solver -> (
     cmp := (f,h,bound,mon,Q,mult) -> (
         if Q===null then return false;
         d := f - bound + (h*mult - transpose mon * Q * mon)_(0,0);
-        if coefficientRing ring h===QQ then return d==0;
+        if isExactField h then return d==0;
         return norm(d)<1e-4;
         );
 
