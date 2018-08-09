@@ -63,7 +63,6 @@ export {
     "WorkingPrecision",
     "Solver",
     "TraceObj",
-    "EigTol",
     "Scaling"
 }
 
@@ -769,24 +768,20 @@ sosdecTernary(RingElement) := o -> (f) -> (
 -- SOS OPTIMIZATION
 --###################################
 
-rank1factor = (X) -> (
-    n := numRows X;
-    (e, V) := eigenvectors(X,Hermitian=>true);
-    v := sqrt max(e#(n-1),0) * V_{n-1};
-    x := flatten entries v;
-    return (x,e/abs(e#(-1)));
-    )
-
-recoverSolution = {EigTol => 1e-4} >> o -> (mon,X) -> (
+recoverSolution = (mon,X) -> (
     if X===null then return {};
-    (x,e) := rank1factor(X);
-    if e#0 < -1e-9 then return {}; -- X not PSD
-    if e#(-2) > o.EigTol then return {}; -- not rank one
-    if x#0<0 then x = -x;
+    e := eigenvalues(X,Hermitian=>true);
+    if e#(-1)<=0 or e#0/e#(-1) < -1e-9 then 
+        error "Moment matrix is not positive semidefinite";
+    i0 := position(flatten entries mon, i -> i==1);
+    if i0===null then
+        error "The monomial vector must contain 1";
+    if e#(-2) > 1e-4 then 
+        print "Moment matrix is not rank one, solution might not be correct.";
     sol := for i to numRows mon-1 list (
-        y := mon_(i,0);
+        y := mon_(i,i0);
         if sum degree y!=1 then continue;
-        y => x_i );
+        y => X_(i,i0) );
     return sol;
     )
 
@@ -1398,7 +1393,7 @@ checkSosdecTernary = solver -> (
     cmp := (f,p,q) -> (
         if p===null then return false;
         d := product(sumSOS\p) - f*product(sumSOS\q);
-        if isExactField ring f then return d==0;
+        if isExactField f then return d==0;
         return norm(d) < 1e-4;
         );
 
