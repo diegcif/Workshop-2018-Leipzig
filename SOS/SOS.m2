@@ -227,14 +227,6 @@ smat2vec(List) := o -> A -> (
     return flatten v;
     )
 smat2vec(Matrix) := o -> A -> matrix(ring A, apply(smat2vec(entries A,o), a->{a}))
-smat2vec(Sequence) := o -> matrices -> (
-    A0 := matrices#0;
-    ismat := instance(A0,Matrix);
-    if ismat then matrices = entries \ matrices;
-    vects := for Ai in matrices list smat2vec(Ai,o);
-    if ismat then vects = matrix(ring A0, vects);
-    return vects;
-    )
 
 vec2smat = method( Options => {Scaling => 1} )
 vec2smat(List) := o -> v -> (
@@ -701,12 +693,18 @@ makeMultiples = (h, D, homog) -> (
 
 sosInIdeal = method(
      Options => {RndTol => 3, Solver=>"CSDP", Verbose => false} )
-sosInIdeal (Ideal, ZZ) := o -> (I,D) -> (
-    -- Find a sum of squares in an ideal
-    -- It does not return the multpliers of the generators as
-    -- these are relative to the generators, which are not fixed.
-    (a,mult) := sosInIdeal (gens I, D);
-    return a
+sosInIdeal (Ring, ZZ) := o -> (R,D) -> (
+    -- find sos polynomial in a quotient ring
+    if odd D then error "D must be even";
+    mon := if isHomogeneous R then transpose basis(D//2,R)
+        else transpose basis(0,D//2,R);
+    (mon',Q,X,tval) := solveSOS (0_R, mon, o);
+    a := sosdec(mon',Q);
+    if a===null or Q==0 or (not isExactField Q and norm Q<1e-6) then (
+        print("no sos polynomial in degree "|D);
+        return;
+        );
+    return a;
     )
 sosInIdeal (Matrix,ZZ) := o -> (h,D) -> (
     -- h is a row vector of polynomials
@@ -722,15 +720,11 @@ sosInIdeal (Matrix,ZZ) := o -> (h,D) -> (
     (H,m) := makeMultiples(first entries h, D, homog);
     F := matrix transpose {{0}|H};
     (mon,Q,X,tval) := rawSolveSOS (F, o);
-    if Q===null or Q==0 or (not isExactField Q and norm Q<1e-6) then (
-        print("no sos polynomial in degree "|D);
-        return (null,null);
-	);
     a := sosdec(mon,Q);
-    if a===null then (
+    if a===null or Q==0 or (not isExactField Q and norm Q<1e-6) then (
         print("no sos polynomial in degree "|D);
         return (null,null);
-	);
+        );
     mult := getMultipliers(m,tval,ring mon);
     return (a,mult);
     )
@@ -1439,6 +1433,7 @@ checkSosInIdeal = solver -> (
     local z; z= symbol z;
     cmp := (h,s,mult) -> (
         if s===null then return false;
+        h = sub(h,ring s);
         d := (h*mult)_(0,0) - sumSOS s;
         if isExactField h then return d==0;
         return norm(d)<1e-4;
